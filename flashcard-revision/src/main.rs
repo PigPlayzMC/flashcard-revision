@@ -1,3 +1,8 @@
+fn add_new_flashcard() {
+    // This takes inputs and turns it into a struct
+    // Then returns it.
+}
+
 fn main() {
     // Declare subjects to 'store' flashcards in
     let mut subjects = Vec::new(); // Store flashcards
