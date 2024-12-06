@@ -1,3 +1,5 @@
+use rand::prelude::*;
+
 // All flashcards follow this structure
 pub struct Flashcard {
     subject: i32, // Which subject these fall into
@@ -21,8 +23,8 @@ fn add_new_flashcard(sub:i32, ques: String, ans: String) -> Flashcard{
     }
 }
 
-fn get_random_flashcard(card_set:Vec<Flashcard>) {
-    
+fn get_random_flashcard(card_set:Vec<Flashcard>) -> Flashcard {
+    return card_set[0]; // Return random value [NOT IMPLEMENTED]
 }
 
 fn main() {
@@ -46,4 +48,8 @@ fn main() {
 
     // Add a new flashcard
     weak_flashcards.push(add_new_flashcard(sub, ques, ans));
+
+    // Ask a random flashcard question
+    let question_to_ask = get_random_flashcard(weak_flashcards);
+
 }
