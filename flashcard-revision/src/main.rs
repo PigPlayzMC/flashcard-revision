@@ -1,6 +1,7 @@
-use rand::prelude::*;
+use rand::Rng;
 
 // All flashcards follow this structure
+#[derive(Clone)]
 pub struct Flashcard {
     subject: i32, // Which subject these fall into
     last_accessed: i32, //Change when date storage established
@@ -24,7 +25,9 @@ fn add_new_flashcard(sub:i32, ques: String, ans: String) -> Flashcard{
 }
 
 fn get_random_flashcard(card_set:Vec<Flashcard>) -> Flashcard {
-    return card_set[0]; // Return random value [NOT IMPLEMENTED]
+    let mut rng = rand::thread_rng();
+    let length = card_set.len();
+    return card_set[rng.gen_range(0..length)].clone(); // Return random value
 }
 
 fn main() {
@@ -35,8 +38,6 @@ fn main() {
     let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
     let mut learning_flashcard: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
     let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
-
-    
 
     // This is the current flashcard number which determines which flashcard is used.
     let mut flashcard: i32 = 0;
@@ -52,4 +53,5 @@ fn main() {
     // Ask a random flashcard question
     let question_to_ask = get_random_flashcard(weak_flashcards);
 
+    
 }
