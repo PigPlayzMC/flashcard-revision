@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::io;
 
 // All flashcards follow this structure
 #[derive(Clone)]
@@ -39,19 +40,22 @@ fn main() {
     let mut learning_flashcard: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
     let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
 
-    // This is the current flashcard number which determines which flashcard is used.
-    let mut flashcard: i32 = 0;
-
-    // Add a flashcard to a subject
+    // ## Add a flashcard to a subject ##
     let sub = 0;
     let ques: String = "Hello World!".to_owned();
     let ans: String = "Hello World!".to_owned();
-
     // Add a new flashcard
     weak_flashcards.push(add_new_flashcard(sub, ques, ans));
 
-    // Ask a random flashcard question
+    // ## Ask a random flashcard question ##
+    // Get rand question
     let question_to_ask = get_random_flashcard(weak_flashcards);
+    // Display question
+    println!("{}",question_to_ask.question);
 
-    
+    let mut input = String::new();
+    let _n = io::stdin().read_line(&mut input).unwrap();
+
+    println!("Your answer: {}", input.trim());
+    println!("Actual answer: {}", question_to_ask.answer);
 }
