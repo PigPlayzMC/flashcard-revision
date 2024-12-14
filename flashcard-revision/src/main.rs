@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::{io, sync::WaitTimeoutResult};
+use std::io;
 use chrono::{self, Local, NaiveDate};
 
 // All flashcards follow this structure
