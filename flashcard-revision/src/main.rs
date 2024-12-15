@@ -33,6 +33,16 @@ fn get_random_flashcard<'a>(card_set: &'a mut Vec<Flashcard>) -> usize {
 	return rand_number; // Return random value
 }
 
+fn congratulations(flashcard: Flashcard) {
+	let accuracy: f64 = (flashcard.correct / (flashcard.correct + flashcard.incorrect)).into();
+	println!("Well done! Your accuracy is now {}", accuracy);
+}
+
+fn comiserations(flashcard: Flashcard) {
+	let accuracy:f64 = (flashcard.correct / (flashcard.correct + flashcard.incorrect)).into();
+	println!("Whoops! Your accuracy is now {}", accuracy);
+}
+
 fn main() {
 	// Declare subjects to 'store' flashcards in
 	let mut subjects: Vec<String> = Vec::new(); // Store flashcards
@@ -84,12 +94,14 @@ fn main() {
 			learning_flashcards.swap_remove(index_of_question);
 			strong_flashcards.push(question_to_ask.clone());
 		}
+
+		congratulations(question_to_ask);
 	} else {
 		println!("Was your answer correct? (y/n)");
 		let mut input = String::new();
 		let _n = io::stdin().read_line(&mut input).unwrap();
 		println!("Input: {}", input.trim().to_lowercase());
-		if input.trim().to_lowercase() == "y" {
+		if input.trim().to_lowercase() == "y" { // Answer correct
 			question_to_ask.correct += 1;
 			
 			if practice_set == "weak" {
@@ -101,7 +113,9 @@ fn main() {
 				learning_flashcards.swap_remove(index_of_question);
 				strong_flashcards.push(question_to_ask.clone());
 			}
-		} else if input.trim().to_lowercase() == "n" {
+
+			congratulations(question_to_ask);
+		} else if input.trim().to_lowercase() == "n" { // Answer correct
 			question_to_ask.incorrect += 1;
 
 			if practice_set == "learning" {
@@ -113,10 +127,12 @@ fn main() {
 				strong_flashcards.swap_remove(index_of_question);
 				weak_flashcards.push(question_to_ask.clone());
 			}
+
+			comiserations(question_to_ask);
 		}
 	}
 
-	// Debug
+	// Debug pls remove owo
 	for counter in 0..weak_flashcards.len() {
 		println!("Weak: {}", weak_flashcards[counter].question);
 	}
