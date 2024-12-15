@@ -38,9 +38,31 @@ fn congratulations(flashcard: Flashcard) {
 	println!("Well done! Your accuracy is now {}", accuracy);
 }
 
-fn comiserations(flashcard: Flashcard) {
+fn commiserations(flashcard: Flashcard) {
 	let accuracy:f64 = (flashcard.correct / (flashcard.correct + flashcard.incorrect)).into();
 	println!("Whoops! Your accuracy is now {}", accuracy);
+}
+
+fn revision_summary(correct_total : i32, cards_practiced : i32, weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_flashcards : Vec<Flashcard>) {
+	println!("Post flashcard breakdown:");
+	let percent_accuracy = correct_total/cards_practiced*100;
+	let mut cards= "card";
+
+	if cards_practiced > 1 {
+		cards = "cards";
+	}
+	
+	println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards,correct_total, percent_accuracy);
+	println!("Category breakdown; ");
+	for counter in 0..weak_flashcards.len() {
+		println!("Cards now marked weak: {}", weak_flashcards[counter].question);
+	}
+	for counter in 0..learning_flashcards.len() {
+		println!("Cards now marked learning: {}", learning_flashcards[counter].question);
+	}
+	for counter in 0..strong_flashcards.len() {
+		println!("Cards now marked strong: {}", strong_flashcards[counter].question);
+	}
 }
 
 fn main() {
@@ -59,11 +81,15 @@ fn main() {
 	// Add a new flashcard
 	weak_flashcards.push(add_new_flashcard(sub, ques, ans));
 
+	// Per practice variables
+	let mut cards_practiced = 0;
+	let mut correct_total = 0;
+
 	// ## Ask a random flashcard question ##
 	// Get rand question
 	let index_of_question = get_random_flashcard(&mut weak_flashcards);
 	let mut question_to_ask = weak_flashcards[index_of_question].clone();
-	let practice_set = "weak"; // Dependent on wether weak, mid, or stong being practiced.
+	let practice_set = "weak"; // Dependent on wether weak, mid, or strong being practiced.
 	// Display question
 	println!("{}",question_to_ask.question);
 
@@ -81,65 +107,60 @@ fn main() {
 
 	question_to_ask.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
 
-	if input.trim() == question_to_ask.answer {
+	cards_practiced += 1;
+	if input.trim().to_lowercase() == question_to_ask.answer.to_lowercase() {
 		println!("Correct!");
 		question_to_ask.correct += 1;
 
 		if practice_set == "weak" {
-			println!("Moving to learning...");
+			//println!("Moving to learning...");
 			weak_flashcards.swap_remove(index_of_question);
 			learning_flashcards.push(question_to_ask.clone());
 		} else if practice_set == "learning" {
-			println!("Moving to strong...");
+			//println!("Moving to strong...");
 			learning_flashcards.swap_remove(index_of_question);
 			strong_flashcards.push(question_to_ask.clone());
 		}
 
 		congratulations(question_to_ask);
+		correct_total += 1;
 	} else {
 		println!("Was your answer correct? (y/n)");
 		let mut input = String::new();
 		let _n = io::stdin().read_line(&mut input).unwrap();
-		println!("Input: {}", input.trim().to_lowercase());
+		//println!("Input: {}", input.trim().to_lowercase());
 		if input.trim().to_lowercase() == "y" { // Answer correct
 			question_to_ask.correct += 1;
 			
 			if practice_set == "weak" {
-				println!("Moving to learning...");
+				//println!("Moving to learning...");
 				weak_flashcards.swap_remove(index_of_question);
 				learning_flashcards.push(question_to_ask.clone());
 			} else if practice_set == "learning" {
-				println!("Moving to strong...");
+				//println!("Moving to strong...");
 				learning_flashcards.swap_remove(index_of_question);
 				strong_flashcards.push(question_to_ask.clone());
 			}
 
 			congratulations(question_to_ask);
+			correct_total += 1;
 		} else if input.trim().to_lowercase() == "n" { // Answer correct
 			question_to_ask.incorrect += 1;
 
 			if practice_set == "learning" {
-				println!("Moving to weak...");
+				//println!("Moving to weak...");
 				learning_flashcards.swap_remove(index_of_question);
 				weak_flashcards.push(question_to_ask.clone());
 			} else if practice_set == "strong" {
-				println!("Moving to learning...");
+				//println!("Moving to learning...");
 				strong_flashcards.swap_remove(index_of_question);
 				weak_flashcards.push(question_to_ask.clone());
 			}
 
-			comiserations(question_to_ask);
+			commiserations(question_to_ask);
 		}
 	}
 
-	// Debug pls remove owo
-	for counter in 0..weak_flashcards.len() {
-		println!("Weak: {}", weak_flashcards[counter].question);
-	}
-	for counter in 0..learning_flashcards.len() {
-		println!("Learning: {}", learning_flashcards[counter].question);
-	}
-	for counter in 0..strong_flashcards.len() {
-		println!("Strong: {}", strong_flashcards[counter].question);
-	}
+	// Post revision summary
+	revision_summary(correct_total, cards_practiced, weak_flashcards, learning_flashcards, strong_flashcards);
 }
