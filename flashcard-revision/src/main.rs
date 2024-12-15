@@ -43,7 +43,8 @@ fn commiserations(flashcard: Flashcard) {
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
-fn revision_summary(correct_total : i32, cards_practiced : i32, weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_flashcards : Vec<Flashcard>) {
+fn revision_summary(correct_total : i32, cards_practiced : i32,
+	weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_flashcards : Vec<Flashcard>) {
 	println!("Post flashcard breakdown:");
 	let percent_accuracy = correct_total/cards_practiced*100;
 	let mut cards= "card";
