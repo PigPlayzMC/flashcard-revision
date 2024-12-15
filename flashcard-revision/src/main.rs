@@ -52,16 +52,32 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, weak_flashcards 
 		cards = "cards";
 	}
 	
-	println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards,correct_total, percent_accuracy);
-	println!("Category breakdown; ");
-	for counter in 0..weak_flashcards.len() {
-		println!("Cards now marked weak: {}", weak_flashcards[counter].question);
+	println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards, correct_total, percent_accuracy);
+	println!();
+	println!("Learning progress breakdown; ");
+
+	if weak_flashcards.len() > 0 {
+		println!("Cards labelled weak;");
+		for counter in 0..weak_flashcards.len() {
+			println!("{}", weak_flashcards[counter].question);
+		}
+		println!();
 	}
-	for counter in 0..learning_flashcards.len() {
-		println!("Cards now marked learning: {}", learning_flashcards[counter].question);
+	
+	if learning_flashcards.len() > 0 {
+		println!("Cards labelled learning;");
+		for counter in 0..learning_flashcards.len() {
+			println!("{}", learning_flashcards[counter].question);
+		}
+		println!();
 	}
-	for counter in 0..strong_flashcards.len() {
-		println!("Cards now marked strong: {}", strong_flashcards[counter].question);
+
+	if strong_flashcards.len() > 0 {
+		println!("Cards labelled strong;");
+		for counter in 0..strong_flashcards.len() {
+			println!("{}", strong_flashcards[counter].question);
+		}
+		println!();
 	}
 }
 
@@ -110,6 +126,7 @@ fn main() {
 	cards_practiced += 1;
 	if input.trim().to_lowercase() == question_to_ask.answer.to_lowercase() {
 		println!("Correct!");
+		println!();
 		question_to_ask.correct += 1;
 
 		if practice_set == "weak" {
@@ -128,6 +145,7 @@ fn main() {
 		println!("Was your answer correct? (y/n)");
 		let mut input = String::new();
 		let _n = io::stdin().read_line(&mut input).unwrap();
+		println!();
 		//println!("Input: {}", input.trim().to_lowercase());
 		if input.trim().to_lowercase() == "y" { // Answer correct
 			question_to_ask.correct += 1;
