@@ -68,9 +68,19 @@ fn main() {
 	println!("Your answer: {}", input.trim());
 	println!("Actual answer: {}", question_to_ask.answer);
 
+	question_to_ask.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
+
 	if input.trim() == question_to_ask.answer {
 		println!("Correct!");
 		question_to_ask.correct += 1;
+
+		if practice_set == "weak" {
+			weak_flashcards.swap_remove(index_of_question);
+			learning_flashcard.push(question_to_ask.clone());
+		} else if practice_set == "learning" {
+			learning_flashcard.swap_remove(index_of_question);
+			strong_flashcards.push(question_to_ask.clone());
+		}
 	} else {
 		println!("Was your answer correct? (y/n)");
 		let _n = io::stdin().read_line(&mut input).unwrap();
@@ -96,6 +106,4 @@ fn main() {
 			}
 		}
 	}
-
-	question_to_ask.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
 }
