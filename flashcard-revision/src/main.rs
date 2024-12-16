@@ -24,12 +24,12 @@ fn add_new_flashcard(ques: String, ans: String) -> Flashcard {
 	}
 }
 
-fn get_random_flashcard<'a>(card_set: &'a mut Vec<Flashcard>, previous_indexes: Vec<usize>, length: usize) -> usize {
+fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length:usize) -> usize {
 	let mut rng = rand::thread_rng();
 	println!("Randomising card from 0 to {length}");
 	loop {
 		let rand_number = rng.gen_range(0..length);
-		if previous_indexes.contains(&rand_number) {
+		if list_of_indexes.contains(&rand_number) {
 			// Flash card already done. Retry!
 		} else {
 			return rand_number; // Return random value
@@ -47,8 +47,7 @@ fn commiserations(flashcard: Flashcard) {
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
-fn revision_summary(correct_total : i32, cards_practiced : i32,
-weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_flashcards : Vec<Flashcard>) {
+fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<Flashcard>, to_move_down : Vec<Flashcard>) {
 	println!("Post flashcard breakdown:");
 	let percent_accuracy = correct_total/cards_practiced*100;
 	let mut cards= "card";
@@ -61,26 +60,18 @@ weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_f
 	println!();
 	println!("Learning progress breakdown; ");
 
-	if weak_flashcards.len() > 0 {
-		println!("Cards labelled weak;");
-		for counter in 0..weak_flashcards.len() {
-			println!("{}", weak_flashcards[counter].question);
-		}
-		println!();
-	}
-	
-	if learning_flashcards.len() > 0 {
-		println!("Cards labelled learning;");
-		for counter in 0..learning_flashcards.len() {
-			println!("{}", learning_flashcards[counter].question);
+	if to_move_up.len() > 0 {
+		println!("Cards moving upwards;");
+		for counter in 0..to_move_up.len() {
+			println!("{}", to_move_up[counter].question);
 		}
 		println!();
 	}
 
-	if strong_flashcards.len() > 0 {
-		println!("Cards labelled strong;");
-		for counter in 0..strong_flashcards.len() {
-			println!("{}", strong_flashcards[counter].question);
+	if to_move_down.len() > 0 {
+		println!("Cards moving down;");
+		for counter in 0..to_move_down.len() {
+			println!("{}", to_move_down[counter].question);
 		}
 		println!();
 	}
@@ -91,6 +82,7 @@ fn main() {
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
 	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
+	let debug_flashcard: Flashcard = add_new_flashcard("DEFAULT FLASHCARD".to_owned(), "PLEASE IGNORE".to_owned());
 
 	// ## Add a flashcard to a subject ##
 	let ques: String = "Hello World!".to_owned();
@@ -104,22 +96,30 @@ fn main() {
 	weak_flashcards.push(add_new_flashcard(ques, ans));
 
 	// ### ### REVISION LOOP ### ###
-	let mut to_practice: &str = "weak"; // Set by user selection eventually. Can be "weak", "learning", or "strong"
+	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
 	let mut practice_set: Vec<Flashcard> = Vec::new();
 	let mut cards_done: usize = 0;
 	let mut cards_selected: Vec<usize> = Vec::new();
+	let mut correct: bool = false;
+	let mut correct_total = 0;
+	
+	// Cards to be moved upwards following this revision session (Doesn't get used if practice_set is strong_flashcards)
+	let mut to_move_up: Vec<Flashcard> = Vec::new();
+	// Cards to be moved downwards following this revision session (Doesn't get used if practice_set is weak_flashcards)
+	let mut to_move_down: Vec<Flashcard> = Vec::new();
 
 	// Determines which flashcard set will be practiced.
 	if to_practice == "weak" {
-		practice_set = weak_flashcards;
+		practice_set = weak_flashcards.clone();
 	} else if to_practice == "learning" {
-		practice_set = learning_flashcards;
+		practice_set = learning_flashcards.clone();
 	} else {
-		practice_set = strong_flashcards;
+		practice_set = strong_flashcards.clone();
 	}
-	
-	/* 
-	**Explanation of below loop**
+
+	let length_of_set: usize = practice_set.len();
+
+	/* **Explanation of below loop**
 		- Practiced flashcards are removed from practice_set
 		- Flashcards are randomly selected from the original set (e.g. weak_flashcards)
 		- Random index is checked against list of already chosen indexes (Stored in cards_selected)
@@ -145,15 +145,23 @@ fn main() {
 	 */
 
 	// Loop proper
-	while cards_done <= practice_set.len() {
+	while cards_done < practice_set.len() {
 		// ## Ask a random flashcard question ##
 		// Get rand question
-		let index_of_question = get_random_flashcard(&mut weak_flashcards, indexes.clone(), length);
-		indexes.push(index_of_question);
-		let mut question_to_ask = weak_flashcards[index_of_question].clone();
+		let index_of_question: usize = get_random_flashcard(cards_selected.clone(), length_of_set);
+		cards_selected.push(index_of_question);
+		
+		let mut flashcard_chosen: Flashcard = debug_flashcard.clone();
+		if to_practice == "weak" {
+			flashcard_chosen = weak_flashcards[index_of_question].clone();
+		} else if to_practice == "learning" {
+			flashcard_chosen = learning_flashcards[index_of_question].clone();
+		} else {
+			flashcard_chosen = strong_flashcards[index_of_question].clone();
+		}
 
 		// Display question
-		println!("{}",question_to_ask.question);
+		println!("{}",flashcard_chosen.question);
 
 		println!();
 
@@ -165,28 +173,12 @@ fn main() {
 
 		// Compare actual answer and the input
 		println!("Your answer: {}", input.trim());
-		println!("Actual answer: {}", question_to_ask.answer);
+		println!("Actual answer: {}", flashcard_chosen.answer);
 
-		question_to_ask.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
+		flashcard_chosen.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
 
-		cards_practiced += 1;
-		if input.trim().to_lowercase() == question_to_ask.answer.to_lowercase() {
-			println!("Correct!");
-			println!();
-			question_to_ask.correct += 1;
-
-			if practice_set == "weak" {
-				//println!("Moving to learning...");
-				weak_flashcards.swap_remove(index_of_question);
-				learning_flashcards.push(question_to_ask.clone());
-			} else if practice_set == "learning" {
-				//println!("Moving to strong...");
-				learning_flashcards.swap_remove(index_of_question);
-				strong_flashcards.push(question_to_ask.clone());
-			}
-
-			congratulations(question_to_ask);
-			correct_total += 1;
+		if input.trim().to_lowercase() == flashcard_chosen.answer.to_lowercase() {
+			correct = true;			
 		} else {
 			println!("Was your answer correct? (y/n)");
 			let mut input = String::new();
@@ -194,39 +186,39 @@ fn main() {
 			println!();
 			//println!("Input: {}", input.trim().to_lowercase());
 			if input.trim().to_lowercase() == "y" { // Answer correct
-				question_to_ask.correct += 1;
-				
-				if practice_set == "weak" {
-					//println!("Moving to learning...");
-					weak_flashcards.swap_remove(index_of_question);
-					learning_flashcards.push(question_to_ask.clone());
-				} else if practice_set == "learning" {
-					//println!("Moving to strong...");
-					learning_flashcards.swap_remove(index_of_question);
-					strong_flashcards.push(question_to_ask.clone());
-				}
-
-				congratulations(question_to_ask);
-				correct_total += 1;
+				correct = true;
 			} else if input.trim().to_lowercase() == "n" { // Answer correct
-				question_to_ask.incorrect += 1;
-
-				if practice_set == "learning" {
-					//println!("Moving to weak...");
-					learning_flashcards.swap_remove(index_of_question);
-					weak_flashcards.push(question_to_ask.clone());
-				} else if practice_set == "strong" {
-					//println!("Moving to learning...");
-					strong_flashcards.swap_remove(index_of_question);
-					weak_flashcards.push(question_to_ask.clone());
-				}
-
-				commiserations(question_to_ask);
+				correct = false;
 			}
 		}
+		
+		// If cards are correct and this is not the highest tier of cards
+		if correct {
+			if to_practice != "strong" {
+				// Can move upwards post revision
+				to_move_up.push(flashcard_chosen.clone());
+			}
+
+			flashcard_chosen.correct += 1;
+			correct_total += 1;
+
+			congratulations(flashcard_chosen);
+		} else {
+			if to_practice != "weak" {
+				// Can mode downwards post revision
+				to_move_down.push(flashcard_chosen.clone());
+			}
+
+			flashcard_chosen.incorrect += 1;
+
+			commiserations(flashcard_chosen);
+		}
+		
 		cards_done += 1;
 	}
 
 	// Post revision summary
-	revision_summary(correct_total, cards_practiced, weak_flashcards, learning_flashcards, strong_flashcards);
+	revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone());
+
+	// Cards move in their tiers responding to ability
 }
