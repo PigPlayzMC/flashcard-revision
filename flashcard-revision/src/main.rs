@@ -114,8 +114,19 @@ fn main() {
 
 
 	// ### ### REVISION LOOP ### ###
-	let practice_set = "weak"; // Dependent on wether weak, mid, or strong being practiced.
-	let length: usize = weak_flashcards.len();
+	let mut to_practice: &str = "Weak";
+
+	// Determines which flashcard set will be practiced.
+	if to_practice == "Weak" {
+		let practice_set: Vec<Flashcard> = weak_flashcards;
+	} else if to_practice == "Learning" {
+		let practice_set: Vec<Flashcard> = learning_flashcards;
+	} else {
+		let practice_set: Vec<Flashcard> = strong_flashcards;
+	}
+	
+
+	// Loop proper
 	while cards_usize <= weak_flashcards.len() {
 		// ## Ask a random flashcard question ##
 		// Get rand question
