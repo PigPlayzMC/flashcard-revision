@@ -87,9 +87,6 @@ weak_flashcards : Vec<Flashcard>, learning_flashcards : Vec<Flashcard>, strong_f
 }
 
 fn main() {
-	// Declare subjects to 'store' flashcards in
-	let mut subjects: Vec<String> = Vec::new(); // Store flashcards
-
 	// Declare flashcard variables
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
@@ -106,28 +103,49 @@ fn main() {
 	// Add a new flashcard
 	weak_flashcards.push(add_new_flashcard(ques, ans));
 
-	// Per practice variables
-	let mut cards_practiced: i32 = 0;
-	let mut cards_usize: usize = 0;
-	let mut correct_total = 0;
-	let mut indexes: Vec<usize> = Vec::new();
-
-
 	// ### ### REVISION LOOP ### ###
-	let mut to_practice: &str = "Weak";
+	let mut to_practice: &str = "weak"; // Set by user selection eventually. Can be "weak", "learning", or "strong"
+	let mut practice_set: Vec<Flashcard> = Vec::new();
+	let mut cards_done: usize = 0;
+	let mut cards_selected: Vec<usize> = Vec::new();
 
 	// Determines which flashcard set will be practiced.
-	if to_practice == "Weak" {
-		let practice_set: Vec<Flashcard> = weak_flashcards;
-	} else if to_practice == "Learning" {
-		let practice_set: Vec<Flashcard> = learning_flashcards;
+	if to_practice == "weak" {
+		practice_set = weak_flashcards;
+	} else if to_practice == "learning" {
+		practice_set = learning_flashcards;
 	} else {
-		let practice_set: Vec<Flashcard> = strong_flashcards;
+		practice_set = strong_flashcards;
 	}
 	
+	/* 
+	**Explanation of below loop**
+		- Practiced flashcards are removed from practice_set
+		- Flashcards are randomly selected from the original set (e.g. weak_flashcards)
+		- Random index is checked against list of already chosen indexes (Stored in cards_selected)
+			- If already chosen, rerandomise
+			- If not already in cards_selected, return that value
+		- Add the provided index to cards_selected
+		- Use the provided index to provide a question
+		- Check answer and, if needed, get user verification
+		- Log accuracy
+		- Based on success or lack thereof, place the card into a vector marking it to be moved
+			to a new set following the termination of the loop. EXAMPLE;
+
+			if correct;
+				to_move_up.push(this_flashcard);
+			else
+				to_move_down.push(this_flashcard);
+
+			// After loop
+			for element in to_move_up
+				higher_set.push(to_move_up[element]);
+			for element in to_move_down
+				lower_set.push(to_move_down[element]);
+	 */
 
 	// Loop proper
-	while cards_usize <= weak_flashcards.len() {
+	while cards_done <= practice_set.len() {
 		// ## Ask a random flashcard question ##
 		// Get rand question
 		let index_of_question = get_random_flashcard(&mut weak_flashcards, indexes.clone(), length);
@@ -206,7 +224,7 @@ fn main() {
 				commiserations(question_to_ask);
 			}
 		}
-		cards_usize += 1;
+		cards_done += 1;
 	}
 
 	// Post revision summary
