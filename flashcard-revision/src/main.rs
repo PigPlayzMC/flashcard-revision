@@ -47,7 +47,7 @@ fn commiserations(flashcard: Flashcard) {
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
-fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<usize>, to_move_down : Vec<usize>) {
+fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<usize>, to_move_down : Vec<usize>, practice_set : Vec<Flashcard>) {
 	println!();
 	println!("Post flashcard breakdown:");
 	let percent_accuracy:i32 = correct_total/cards_practiced*100;
@@ -63,10 +63,17 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec
 
 	if to_move_up.len() > 0 {
 		println!("Cards moving upwards;");
+		for &index in to_move_up.iter() {
+			println!("- {}", practice_set[index].question);
+		}
+		println!();
 	}
 
 	if to_move_down.len() > 0 {
 		println!("Cards moving down;");
+		for &index in to_move_down.iter() {
+			println!("- {}", practice_set[index].question);
+		}
 		println!();
 	}
 }
@@ -90,7 +97,6 @@ fn main() {
 
 	// ### ### REVISION LOOP ### ###
 	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
-	let practice_set: Vec<Flashcard>;
 	let mut cards_done: usize = 0;
 	let mut cards_selected: Vec<usize> = Vec::new();
 	let mut correct: bool = false;
@@ -102,15 +108,14 @@ fn main() {
 	let mut to_move_down: Vec<usize> = Vec::new();
 
 	// Determines which flashcard set will be practiced.
+	let length_of_set: usize;
 	if to_practice == "weak" {
-		practice_set = weak_flashcards.clone();
+		length_of_set = weak_flashcards.len();
 	} else if to_practice == "learning" {
-		practice_set = learning_flashcards.clone();
+		length_of_set = learning_flashcards.len();
 	} else {
-		practice_set = strong_flashcards.clone();
+		length_of_set = strong_flashcards.len();
 	}
-
-	let length_of_set: usize = practice_set.len();
 
 	/* **Explanation of below loop**
 		- Practiced flashcards are removed from practice_set
@@ -138,7 +143,7 @@ fn main() {
 	 */
 
 	// Loop proper
-	while cards_done < practice_set.len() {
+	while cards_done < weak_flashcards.len() {
 		// ## Ask a random flashcard question ##
 		// Get rand question
 		let index_of_question: usize = get_random_flashcard(cards_selected.clone(), length_of_set);
@@ -211,20 +216,26 @@ fn main() {
 	}
 
 	// Post revision summary FIX THIS
-	revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone());
+	if to_practice == "weak" {
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), weak_flashcards.clone());
+	} else if to_practice == "learning" {
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), learning_flashcards.clone());
+	} else {
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), strong_flashcards.clone());
+	}
 
 	// ##Cards move up tiers##
 	if to_practice == "weak" {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_up.iter().rev() {
 			learning_flashcards.push(weak_flashcards[index].clone());
-			weak_flashcards.remove(index); // Removing from the back ensures no shifting issues
+			weak_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
 		}
 	} else if to_practice == "learning" {
 		// Move cards upwards to `strong_flashcards`
 		for &index in to_move_up.iter().rev() {
 			strong_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+			learning_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
 
@@ -233,13 +244,13 @@ fn main() {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_down.iter().rev() {
 			weak_flashcards.push(strong_flashcards[index].clone());
-			strong_flashcards.remove(index); // Removing from the back ensures no shifting issues
+			strong_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
 		}
 	} else if to_practice == "learning" {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_down.iter().rev() {
 			weak_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+			learning_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
 }
