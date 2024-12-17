@@ -204,7 +204,7 @@ fn main() {
 		} else {
 			if to_practice != "weak" {
 				// Can mode downwards post revision
-				to_move_down.push(index_of_question-1);
+				to_move_down.push(index_of_question);
 			}
 
 			flashcard_chosen.incorrect += 1;
@@ -229,13 +229,13 @@ fn main() {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_up.iter().rev() {
 			learning_flashcards.push(weak_flashcards[index].clone());
-			weak_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
+			weak_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	} else if to_practice == "learning" {
 		// Move cards upwards to `strong_flashcards`
 		for &index in to_move_up.iter().rev() {
 			strong_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
+			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
 
@@ -244,13 +244,13 @@ fn main() {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_down.iter().rev() {
 			weak_flashcards.push(strong_flashcards[index].clone());
-			strong_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
+			strong_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	} else if to_practice == "learning" {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_down.iter().rev() {
 			weak_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.swap_remove(index); // Removing from the back ensures no shifting issues
+			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
 }
