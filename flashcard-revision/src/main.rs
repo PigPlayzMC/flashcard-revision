@@ -217,11 +217,14 @@ fn main() {
 
 	// Post revision summary FIX THIS
 	if to_practice == "weak" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), weak_flashcards.clone());
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 to_move_down.clone(), weak_flashcards.clone());
 	} else if to_practice == "learning" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), learning_flashcards.clone());
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 to_move_down.clone(), learning_flashcards.clone());
 	} else {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), strong_flashcards.clone());
+		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 to_move_down.clone(), strong_flashcards.clone());
 	}
 
 	// ##Cards move up tiers##
