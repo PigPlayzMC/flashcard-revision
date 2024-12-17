@@ -76,7 +76,6 @@ fn main() {
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
 	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
-	let debug_flashcard: Flashcard = add_new_flashcard("DEFAULT FLASHCARD".to_owned(), "PLEASE IGNORE".to_owned());
 
 	// ## Add a flashcard to a subject ##
 	let ques: String = "Hello World!".to_owned();
@@ -91,7 +90,7 @@ fn main() {
 
 	// ### ### REVISION LOOP ### ###
 	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
-	let mut practice_set: Vec<Flashcard> = Vec::new();
+	let practice_set: Vec<Flashcard>;
 	let mut cards_done: usize = 0;
 	let mut cards_selected: Vec<usize> = Vec::new();
 	let mut correct: bool = false;
@@ -145,7 +144,7 @@ fn main() {
 		let index_of_question: usize = get_random_flashcard(cards_selected.clone(), length_of_set);
 		cards_selected.push(index_of_question);
 		
-		let mut flashcard_chosen: Flashcard = debug_flashcard.clone();
+		let mut flashcard_chosen: Flashcard;
 		if to_practice == "weak" {
 			flashcard_chosen = weak_flashcards[index_of_question].clone();
 		} else if to_practice == "learning" {
