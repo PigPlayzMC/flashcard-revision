@@ -27,9 +27,8 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
 
 fn clear_database(conn: &Connection) { // Very scary
 	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/n)");
-	let mut input: String = String::new();
-	let _n = io::stdin().read_line(&mut input).unwrap();
-	if input.trim() == "y" {
+	let input: String = get_user_input();
+	if input == "y" {
 		let _ = conn.execute(
 			"DROP TABLE flashcards;",
 			params![],
@@ -124,16 +123,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut creating_flashcards: bool = true;
 	while creating_flashcards == true {
 		println!("Would you like to add a flashcard? (y/n)");
-		let mut input: String = String::new();
-		let _n = io::stdin().read_line(&mut input).unwrap();
-		if input.trim() == "y" {
+		let input: String = get_user_input();
+		if input == "y" {
 			println!("Enter the question:");
 			let mut ques: String = String::new();
-			let _n = io::stdin().read_line(&mut ques).unwrap();
+			let _n: usize = io::stdin().read_line(&mut ques).unwrap();
 
 			println!("Enter the answer:");
 			let mut ans: String = String::new();
-			let _n = io::stdin().read_line( &mut ans).unwrap();
+			let _n: usize = io::stdin().read_line( &mut ans).unwrap();
 
 			add_new_flashcard(&conn, ques, ans);
 			/* Creates a new flashcard with the selected question. */
@@ -152,15 +150,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Set to_practice
 	let mut to_practice: i32;
 	println!("Revise which set? (weak, learning, strong)");
-	let mut input: String = String::new();
-	let _n = io::stdin().read_line(&mut input).unwrap();
+	let input: String = get_user_input();
 
-	if input.trim() == "weak" {
+	if input == "weak" {
 		to_practice = 0;
-	} else if input.trim() == "learning" {
+	} else if input == "learning" {
 		to_practice = 1;
 		println!("WARNING: Unsupported!");
-	} else if input.trim() == "strong" {
+	} else if input == "strong" {
 		to_practice = 2;
 		println!("WARNING: Unsupported!");
 	} else {
@@ -171,7 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## Load flashcards from the database ##
 	// Select relevant flashcards from the database.
 	// Then add them into a vector.
-	let mut stmt = conn.prepare("SELECT id FROM flashcards WHERE category = ?1;")?;
+	let mut stmt: rusqlite::Statement<'_> = conn.prepare("SELECT id FROM flashcards WHERE category = ?1;")?;
 	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
 
 	for id_result in ids {
@@ -258,7 +255,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		let mut flashcard_chosen: Flashcard;
 		if to_practice == 0 {
 			flashcard_chosen = weak_flashcards[index_of_question].clone();
-		} else if to_practice == 1 {
+		} else if to_practice == 1 {  
 			flashcard_chosen = learning_flashcards[index_of_question].clone();
 		} else {
 			flashcard_chosen = strong_flashcards[index_of_question].clone();
@@ -270,26 +267,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		println!();
 
 		// Both lines required for input handling
-		let mut input = String::new();
-		let _n = io::stdin().read_line(&mut input).unwrap();
+		let input: String = get_user_input();
 
 		println!();
 
 		// Compare actual answer and the input
-		println!("Your answer: {}", input.trim());
+		println!("Your answer: {}", input);
 		println!("Actual answer: {}", flashcard_chosen.answer);
 
-		if input.trim().to_lowercase() == flashcard_chosen.answer.to_lowercase() {
+		if input.to_lowercase() == flashcard_chosen.answer.to_lowercase() {
 			correct = true;			
 		} else {
 			println!("Was your answer correct? (y/n)");
-			let mut input = String::new();
-			let _n = io::stdin().read_line(&mut input).unwrap();
+			let input: String = get_user_input();
 			println!();
 			//println!("Input: {}", input.trim().to_lowercase());
-			if input.trim().to_lowercase() == "y" { // Answer correct
+			if input.to_lowercase() == "y" { // Answer correct
 				correct = true;
-			} else if input.trim().to_lowercase() == "n" { // Answer correct
+			} else if input.to_lowercase() == "n" { // Answer correct
 				correct = false;
 			}
 		}
@@ -381,6 +376,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			);
 		}
 	}
+
+	// Revision summary goes here!
+	
+
 
 	Ok(()) // Don't know what this does but the compiler wants it.
 }
