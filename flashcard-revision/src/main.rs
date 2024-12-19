@@ -2,11 +2,12 @@ use rand::Rng;
 use rusqlite::{params, Connection};
 use core::panic;
 use std::io;
-use chrono::{self, Local};
+// Will eventually need to use chrono but not now...
 
 // All flashcards follow this structure
 #[derive(Clone)]
 pub struct Flashcard {
+	primary_key: i32, // Primary key of the flashcard
 	question: String, // Question or front text of the card
 	answer: String, // Answer or back text of the card
 	correct: i32, // Times the user has gotten the question correct
@@ -18,7 +19,7 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
 	// This takes inputs and adds it to the correct database, based on the subject.
 	let _ = conn.execute(
 		"INSERT INTO flashcards (category, question, answer, correct, incorrect)
-		VALUES (?1, ?2, ?3, ?4, ?5)",
+		VALUES (?1, ?2, ?3, ?4, ?5);",
 		params![0, ques, ans, 0, 0],
 	);
 	println!("Flashcard added!")
@@ -30,7 +31,7 @@ fn clear_database(conn: &Connection) { // Very scary
 	let _n = io::stdin().read_line(&mut input).unwrap();
 	if input.trim() == "y" {
 		let _ = conn.execute(
-			"DROP TABLE flashcards",
+			"DROP TABLE flashcards;",
 			params![],
 		);
 		println!("Database dropped!");
@@ -115,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			answer TEXT NOT NULL,
 			correct INTEGER NOT NULL,
 			incorrect INTEGER NOT NULL
-		)", // For category; 0 = weak, 1 = learning, 2 = strong
+		);", // For category; 0 = weak, 1 = learning, 2 = strong
 		params![],
 	);
 
@@ -130,6 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			let mut ques: String = String::new();
 			let _n = io::stdin().read_line(&mut ques).unwrap();
 
+			println!("Enter the answer:");
 			let mut ans: String = String::new();
 			let _n = io::stdin().read_line( &mut ans).unwrap();
 
@@ -152,6 +154,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!("Revise which set? (weak, learning, strong)");
 	let mut input: String = String::new();
 	let _n = io::stdin().read_line(&mut input).unwrap();
+
 	if input.trim() == "weak" {
 		to_practice = 0;
 	} else if input.trim() == "learning" {
@@ -168,7 +171,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## Load flashcards from the database ##
 	// Select relevant flashcards from the database.
 	// Then add them into a vector.
-	let mut stmt = conn.prepare("SELECT id FROM flashcards WHERE category = ?1")?;
+	let mut stmt = conn.prepare("SELECT id FROM flashcards WHERE category = ?1;")?;
 	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
 
 	for id_result in ids {
@@ -178,6 +181,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			params![id],
 			|row| {
 				Ok(Flashcard {
+					primary_key: row.get(0)?,
 					question: row.get(2)?,
 					answer: row.get(3)?,
 					correct: row.get(4)?,
@@ -206,15 +210,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut correct_total: i32 = 0;
 	
 	// Cards to be moved upwards following this revision session (Doesn't get used if practice_set is strong_flashcards)
-	let mut to_move_up: Vec<usize> = Vec::new();
+	let mut to_move_up: Vec<i32> = Vec::new(); // Stores primary_key
 	// Cards to be moved downwards following this revision session (Doesn't get used if practice_set is weak_flashcards)
-	let mut to_move_down: Vec<usize> = Vec::new();
+	let mut to_move_down: Vec<i32> = Vec::new(); // Stores primary_key
 
-	// Determines which flashcard set will be practiced [Broken].
+	// Determines which flashcard set will be practiced
 	let length_of_set: usize;
-	if to_practice == "weak" {
+	if to_practice == 0 {
 		length_of_set = weak_flashcards.len();
-	} else if to_practice == "learning" {
+	} else if to_practice == 1 {
 		length_of_set = learning_flashcards.len();
 	} else {
 		length_of_set = strong_flashcards.len();
@@ -244,18 +248,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			for element in to_move_down
 				lower_set.push(to_move_down[element]);
 	 */
-
-	// Loop proper
-	while cards_done < weak_flashcards.len() {
+	// ## Revision loop ##
+	while cards_done < length_of_set {
 		// ## Ask a random flashcard question ##
 		// Get rand question
-		let index_of_question: usize = get_random_flashcard(cards_selected.clone(), length_of_set);
+		let index_of_question:usize  = get_random_flashcard(cards_selected.clone(), length_of_set);
 		cards_selected.push(index_of_question);
 		
 		let mut flashcard_chosen: Flashcard;
-		if to_practice == "weak" {
+		if to_practice == 0 {
 			flashcard_chosen = weak_flashcards[index_of_question].clone();
-		} else if to_practice == "learning" {
+		} else if to_practice == 1 {
 			flashcard_chosen = learning_flashcards[index_of_question].clone();
 		} else {
 			flashcard_chosen = strong_flashcards[index_of_question].clone();
@@ -276,8 +279,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		println!("Your answer: {}", input.trim());
 		println!("Actual answer: {}", flashcard_chosen.answer);
 
-		flashcard_chosen.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
-
 		if input.trim().to_lowercase() == flashcard_chosen.answer.to_lowercase() {
 			correct = true;			
 		} else {
@@ -295,9 +296,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		
 		// If cards are correct and this is not the highest tier of cards
 		if correct {
-			if to_practice != "strong" {
+			if to_practice != 2 {
 				// Can move upwards post revision
-				to_move_up.push(index_of_question);
+				if to_practice == 0 {
+					to_move_up.push(weak_flashcards[index_of_question].primary_key);
+				} else {
+					to_move_up.push(learning_flashcards[index_of_question].primary_key);
+				}
 			}
 
 			flashcard_chosen.correct += 1;
@@ -305,9 +310,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			congratulations(flashcard_chosen);
 		} else {
-			if to_practice != "weak" {
+			if to_practice != 0 {
 				// Can mode downwards post revision
-				to_move_down.push(index_of_question);
+				if to_practice == 1 {
+					to_move_down.push(learning_flashcards[index_of_question].primary_key);
+				} else {
+					to_move_down.push(strong_flashcards[index_of_question].primary_key);
+				}
 			}
 
 			flashcard_chosen.incorrect += 1;
@@ -319,48 +328,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Post revision summary
-	if to_practice == "weak" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 to_move_down.clone(), weak_flashcards.clone());
-	} else if to_practice == "learning" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 to_move_down.clone(), learning_flashcards.clone());
+	if to_practice == 0 {
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), weak_flashcards.clone());
+	} else if to_practice == 1 {
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), learning_flashcards.clone());
 	} else {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 to_move_down.clone(), strong_flashcards.clone());
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), strong_flashcards.clone());
 	}
 
-	// ##Cards move up tiers##
+	// ## Post revision card adjustment ##
+	// Move cards up/down categories and adjust correct/incorrect values
+	// Up
 	to_move_up.sort();
-	if to_practice == "weak" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_up.iter().rev() {
-			learning_flashcards.push(weak_flashcards[index].clone());
-			weak_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	if to_practice == 0 {
+		// Move cards upwards to `learning_flashcards`; cat = 1
+		// Modern
+		for &index in to_move_up.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 1, correct = correct + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
-	} else if to_practice == "learning" {
-		// Move cards upwards to `strong_flashcards`
-		for &index in to_move_up.iter().rev() {
-			strong_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	} else if to_practice == 1 {
+		// Move cards upwards to `strong_flashcards`; cat = 2
+		for &index in to_move_up.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 2, correct = correct + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
 	}
 
-	// ##Cards move down tiers##
+	// Down
 	to_move_down.sort();
-	if to_practice == "strong" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_down.iter().rev() {
-			weak_flashcards.push(strong_flashcards[index].clone());
-			strong_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	if to_practice == 2 {
+		// Move cards downwards to `weak_flashcards`
+		for &index in to_move_down.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
-	} else if to_practice == "learning" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_down.iter().rev() {
-			weak_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	} else if to_practice == 1 {
+		// Move cards downwards to `weak_flashcards`
+		for &index in to_move_down.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
 	}
 
-	Ok(()) // Don't know what this does but compiler wants it.
+	Ok(()) // Don't know what this does but the compiler wants it.
 }
