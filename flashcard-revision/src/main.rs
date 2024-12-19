@@ -1,12 +1,12 @@
 use rand::Rng;
 use rusqlite::{params, Connection};
+use core::panic;
 use std::io;
-use chrono::{self, Local, NaiveDate};
+use chrono::{self, Local};
 
 // All flashcards follow this structure
 #[derive(Clone)]
 pub struct Flashcard {
-	last_accessed: NaiveDate, // Change when date storage established
 	question: String, // Question or front text of the card
 	answer: String, // Answer or back text of the card
 	correct: i32, // Times the user has gotten the question correct
@@ -24,12 +24,19 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
 	println!("Flashcard added!")
 }
 
-fn clear_database(conn: &Connection) {
-	let _ = conn.execute(
-		"DROP TABLE flashcards",
-		params![],
-	);
-	println!("Table dropped!");
+fn clear_database(conn: &Connection) { // Very scary
+	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/n)");
+	let mut input: String = String::new();
+	let _n = io::stdin().read_line(&mut input).unwrap();
+	if input.trim() == "y" {
+		let _ = conn.execute(
+			"DROP TABLE flashcards",
+			params![],
+		);
+		println!("Database dropped!");
+	} else {
+		println!("Database not dropped.");
+	}
 }
 
 // ## Flashcard revision functions ##
@@ -87,11 +94,19 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec
 	}
 }
 
+// ## General functions ##
+fn get_user_input() -> String { // Not to be used until codebase adjusted to use this function!!!
+	let mut input: String = String::new();
+	let _n = io::stdin().read_line(&mut input).unwrap();
+	return input.trim().to_string();
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## SQLite database ##
 	let mut subject_name: &str = "business"; // Eventually user input
 	let conn: Connection = Connection::open(subject_name.to_owned() + ".db")?; // Creates a new database if it doesn't exist or opens it if it does
 
+	// Create flashcards table if not already present
 	let _ = conn.execute(
 		"CREATE TABLE IF NOT EXISTS flashcards (
 			id INTEGER PRIMARY KEY,
@@ -104,13 +119,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		params![],
 	);
 
-	// Create flashcards
+	// Create flashcards loop
 	let mut creating_flashcards: bool = true;
 	while creating_flashcards == true {
 		println!("Would you like to add a flashcard? (y/n)");
-		let mut input = String::new();
+		let mut input: String = String::new();
 		let _n = io::stdin().read_line(&mut input).unwrap();
-		if input == "y" {
+		if input.trim() == "y" {
 			println!("Enter the question:");
 			let mut ques: String = String::new();
 			let _n = io::stdin().read_line(&mut ques).unwrap();
@@ -131,10 +146,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
 	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
 
-	// ### ### REVISION LOOP ### ###
-	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
+	// ## Revision loop ##
+	// Set to_practice
+	let mut to_practice: i32;
+	println!("Revise which set? (weak, learning, strong)");
+	let mut input: String = String::new();
+	let _n = io::stdin().read_line(&mut input).unwrap();
+	if input.trim() == "weak" {
+		to_practice = 0;
+	} else if input.trim() == "learning" {
+		to_practice = 1;
+		println!("WARNING: Unsupported!");
+	} else if input.trim() == "strong" {
+		to_practice = 2;
+		println!("WARNING: Unsupported!");
+	} else {
+		println!("Invalid input. Defaulting to weak flashcards.");
+		to_practice = 0;
+	};
+
+	// ## Load flashcards from the database ##
+	// Select relevant flashcards from the database.
+	// Then add them into a vector.
+	let mut stmt = conn.prepare("SELECT id FROM flashcards WHERE category = ?1")?;
+	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
+
+	for id_result in ids {
+	let id: i32 = id_result?;
+		let flashcard: Result<Flashcard, rusqlite::Error> = conn.query_row(
+			"SELECT * FROM flashcards WHERE id = ?1",
+			params![id],
+			|row| {
+				Ok(Flashcard {
+					question: row.get(2)?,
+					answer: row.get(3)?,
+					correct: row.get(4)?,
+					incorrect: row.get(5)?,
+				})
+			},
+		);
+
+		if flashcard.is_err() {
+			panic!("Error selecting flashcard from the database.");
+		} else {
+			let flashcard = flashcard.unwrap();
+			if to_practice == 0 {
+				weak_flashcards.push(flashcard);
+			} else if to_practice == 1 {
+				learning_flashcards.push(flashcard);
+			} else {
+				strong_flashcards.push(flashcard);
+			}
+		}
+	}
+
 	let mut cards_done: usize = 0;
-	let mut cards_selected: Vec<usize> = Vec::new();
+	let mut cards_selected: Vec<usize> = Vec::new(); // Must store primary keys of flashcards chosen to prevent repeats (Could be more efficient?)
 	let mut correct: bool = false;
 	let mut correct_total: i32 = 0;
 	
@@ -143,7 +210,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Cards to be moved downwards following this revision session (Doesn't get used if practice_set is weak_flashcards)
 	let mut to_move_down: Vec<usize> = Vec::new();
 
-	// Determines which flashcard set will be practiced.
+	// Determines which flashcard set will be practiced [Broken].
 	let length_of_set: usize;
 	if to_practice == "weak" {
 		length_of_set = weak_flashcards.len();
