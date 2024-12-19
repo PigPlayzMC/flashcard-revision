@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut subject_name: &str = "business"; // Eventually user input
 	let conn: Connection = Connection::open(subject_name.to_owned() + ".db")?; // Creates a new database if it doesn't exist or opens it if it does
 
-	conn.execute(
+	let _ = conn.execute(
 		"CREATE TABLE IF NOT EXISTS flashcards (
 			id INTEGER PRIMARY KEY,
 			category INTEGER NOT NULL,
