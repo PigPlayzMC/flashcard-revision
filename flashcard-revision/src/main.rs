@@ -1,4 +1,5 @@
 use rand::Rng;
+use rusqlite::{params, Connection};
 use std::io;
 use chrono::{self, Local, NaiveDate};
 
@@ -77,8 +78,25 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec
 		println!();
 	}
 }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+	// ## SQLite database ##
+	let mut subject_name: &str = "business"; // Eventually user input
+	let conn: Connection = Connection::open(subject_name.to_owned() + ".db")?; // Creates a new database if it doesn't exist or opens it if it does
 
-fn main() {
+	conn.execute(
+		"CREATE TABLE IF NOT EXISTS flashcards (
+			id INTEGER PRIMARY KEY,
+			category INTEGER NOT NULL,
+			last_accessed TEXT NOT NULL,
+			question TEXT NOT NULL,
+			answer TEXT NOT NULL,
+			correct INTEGER NOT NULL,
+			incorrect INTEGER NOT NULL
+		)", // For category; 0 = weak, 1 = learning, 2 = strong
+		params![],
+	);
+
+	// ## Operational loop ##
 	// Declare flashcard variables
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
@@ -258,4 +276,5 @@ fn main() {
 			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
+Ok(())
 }

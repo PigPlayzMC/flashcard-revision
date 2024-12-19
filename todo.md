@@ -1,0 +1,1 @@
+1. Fix percentage being either 100% or 0% in revision summary [V low priority]
