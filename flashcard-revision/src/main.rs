@@ -51,7 +51,7 @@ fn commiserations(flashcard: Flashcard) {
 fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<usize>, to_move_down : Vec<usize>, practice_set : Vec<Flashcard>) {
 	println!();
 	println!("Post flashcard breakdown:");
-	let percent_accuracy:i32 = correct_total/cards_practiced*100;
+	let percent_accuracy: f64 = (correct_total as f64 / cards_practiced as f64) * 100.0;
 	let mut cards= "card";
 
 	if cards_practiced > 1 {
@@ -78,6 +78,7 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec
 		println!();
 	}
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## SQLite database ##
 	let mut subject_name: &str = "business"; // Eventually user input
