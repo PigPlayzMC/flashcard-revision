@@ -1,29 +1,45 @@
 use rand::Rng;
+use rusqlite::{params, Connection};
+use core::panic;
 use std::io;
-use chrono::{self, Local, NaiveDate};
+// Will eventually need to use chrono but not now...
 
 // All flashcards follow this structure
 #[derive(Clone)]
 pub struct Flashcard {
-	last_accessed: NaiveDate, // Change when date storage established
+	primary_key: i32, // Primary key of the flashcard
 	question: String, // Question or front text of the card
 	answer: String, // Answer or back text of the card
 	correct: i32, // Times the user has gotten the question correct
 	incorrect: i32, // Times the user has gotten the question incorrect
 }
 
-fn add_new_flashcard(ques: String, ans: String) -> Flashcard {
-	// This takes inputs and turns it into a struct
-	// Then returns it.
-	return Flashcard {
-		last_accessed: Local::now().date_naive(), // Doesn't need to be set as it has never been accessed
-		question: ques,
-		answer: ans,
-		correct: 0, // Never answered
-		incorrect: 0, // Never answered
+// ## SQLite functions ##
+fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
+	// This takes inputs and adds it to the correct database, based on the subject.
+	let _ = conn.execute(
+		"INSERT INTO flashcards (category, question, answer, correct, incorrect)
+		VALUES (?1, ?2, ?3, ?4, ?5);",
+		params![0, ques, ans, 0, 0],
+	);
+	println!("Flashcard added!")
+}
+
+fn clear_database(conn: &Connection) { // Very scary
+	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/n)");
+	let input: String = get_user_input();
+	if input == "y" {
+		let _ = conn.execute(
+			"DROP TABLE flashcards;",
+			params![],
+		);
+		println!("Database dropped!");
+	} else {
+		println!("Database not dropped.");
 	}
 }
 
+// ## Flashcard revision functions ##
 fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length:usize) -> usize {
 	let mut rng = rand::thread_rng();
 	println!("Randomising card from 0 to {length}");
@@ -50,7 +66,7 @@ fn commiserations(flashcard: Flashcard) {
 fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<usize>, to_move_down : Vec<usize>, practice_set : Vec<Flashcard>) {
 	println!();
 	println!("Post flashcard breakdown:");
-	let percent_accuracy:i32 = correct_total/cards_practiced*100;
+	let percent_accuracy: f64 = (correct_total as f64 / cards_practiced as f64) * 100.0;
 	let mut cards= "card";
 
 	if cards_practiced > 1 {
@@ -78,40 +94,128 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec
 	}
 }
 
-fn main() {
+// ## General functions ##
+fn get_user_input() -> String { // Not to be used until codebase adjusted to use this function!!!
+	let mut input: String = String::new();
+	let _n = io::stdin().read_line(&mut input).unwrap();
+	return input.trim().to_string();
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+	// ## SQLite database ##
+	let mut subject_name: &str = "business"; // Eventually user input
+	let conn: Connection = Connection::open(subject_name.to_owned() + ".db")?; // Creates a new database if it doesn't exist or opens it if it does
+
+	// Create flashcards table if not already present
+	let _ = conn.execute(
+		"CREATE TABLE IF NOT EXISTS flashcards (
+			id INTEGER PRIMARY KEY,
+			category INTEGER NOT NULL,
+			question TEXT NOT NULL,
+			answer TEXT NOT NULL,
+			correct INTEGER NOT NULL,
+			incorrect INTEGER NOT NULL
+		);", // For category; 0 = weak, 1 = learning, 2 = strong
+		params![],
+	);
+
+	// Create flashcards loop
+	let mut creating_flashcards: bool = true;
+	while creating_flashcards == true {
+		println!("Would you like to add a flashcard? (y/n)");
+		let input: String = get_user_input();
+		if input == "y" {
+			println!("Enter the question:");
+			let mut ques: String = String::new();
+			let _n: usize = io::stdin().read_line(&mut ques).unwrap();
+
+			println!("Enter the answer:");
+			let mut ans: String = String::new();
+			let _n: usize = io::stdin().read_line( &mut ans).unwrap();
+
+			add_new_flashcard(&conn, ques, ans);
+			/* Creates a new flashcard with the selected question. */
+		} else {
+			creating_flashcards = false;
+		}
+	}
+
+	// ## Operational loop ##
 	// Declare flashcard variables
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
 	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
 
-	// ## Add a flashcard to a subject ##
-	let ques: String = "Hello World!".to_owned();
-	let ans: String = "Hello World!".to_owned();
-	// Add a new flashcard
-	weak_flashcards.push(add_new_flashcard(ques, ans));
-	// ## Add a flashcard to a subject ##
-	let ques: String = "Second!".to_owned();
-	let ans: String = "Second!".to_owned();
-	// Add a new flashcard
-	weak_flashcards.push(add_new_flashcard(ques, ans));
+	// ## Revision loop ##
+	// Set to_practice
+	let mut to_practice: i32;
+	println!("Revise which set? (weak, learning, strong)");
+	let input: String = get_user_input();
 
-	// ### ### REVISION LOOP ### ###
-	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
+	if input == "weak" {
+		to_practice = 0;
+	} else if input == "learning" {
+		to_practice = 1;
+		println!("WARNING: Unsupported!");
+	} else if input == "strong" {
+		to_practice = 2;
+		println!("WARNING: Unsupported!");
+	} else {
+		println!("Invalid input. Defaulting to weak flashcards.");
+		to_practice = 0;
+	};
+
+	// ## Load flashcards from the database ##
+	// Select relevant flashcards from the database.
+	// Then add them into a vector.
+	let mut stmt: rusqlite::Statement<'_> = conn.prepare("SELECT id FROM flashcards WHERE category = ?1;")?;
+	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
+
+	for id_result in ids {
+	let id: i32 = id_result?;
+		let flashcard: Result<Flashcard, rusqlite::Error> = conn.query_row(
+			"SELECT * FROM flashcards WHERE id = ?1",
+			params![id],
+			|row| {
+				Ok(Flashcard {
+					primary_key: row.get(0)?,
+					question: row.get(2)?,
+					answer: row.get(3)?,
+					correct: row.get(4)?,
+					incorrect: row.get(5)?,
+				})
+			},
+		);
+
+		if flashcard.is_err() {
+			panic!("Error selecting flashcard from the database.");
+		} else {
+			let flashcard = flashcard.unwrap();
+			if to_practice == 0 {
+				weak_flashcards.push(flashcard);
+			} else if to_practice == 1 {
+				learning_flashcards.push(flashcard);
+			} else {
+				strong_flashcards.push(flashcard);
+			}
+		}
+	}
+
 	let mut cards_done: usize = 0;
-	let mut cards_selected: Vec<usize> = Vec::new();
+	let mut cards_selected: Vec<usize> = Vec::new(); // Must store primary keys of flashcards chosen to prevent repeats (Could be more efficient?)
 	let mut correct: bool = false;
 	let mut correct_total: i32 = 0;
 	
 	// Cards to be moved upwards following this revision session (Doesn't get used if practice_set is strong_flashcards)
-	let mut to_move_up: Vec<usize> = Vec::new();
+	let mut to_move_up: Vec<i32> = Vec::new(); // Stores primary_key
 	// Cards to be moved downwards following this revision session (Doesn't get used if practice_set is weak_flashcards)
-	let mut to_move_down: Vec<usize> = Vec::new();
+	let mut to_move_down: Vec<i32> = Vec::new(); // Stores primary_key
 
-	// Determines which flashcard set will be practiced.
+	// Determines which flashcard set will be practiced
 	let length_of_set: usize;
-	if to_practice == "weak" {
+	if to_practice == 0 {
 		length_of_set = weak_flashcards.len();
-	} else if to_practice == "learning" {
+	} else if to_practice == 1 {
 		length_of_set = learning_flashcards.len();
 	} else {
 		length_of_set = strong_flashcards.len();
@@ -141,18 +245,17 @@ fn main() {
 			for element in to_move_down
 				lower_set.push(to_move_down[element]);
 	 */
-
-	// Loop proper
-	while cards_done < weak_flashcards.len() {
+	// ## Revision loop ##
+	while cards_done < length_of_set {
 		// ## Ask a random flashcard question ##
 		// Get rand question
-		let index_of_question: usize = get_random_flashcard(cards_selected.clone(), length_of_set);
+		let index_of_question:usize  = get_random_flashcard(cards_selected.clone(), length_of_set);
 		cards_selected.push(index_of_question);
 		
 		let mut flashcard_chosen: Flashcard;
-		if to_practice == "weak" {
+		if to_practice == 0 {
 			flashcard_chosen = weak_flashcards[index_of_question].clone();
-		} else if to_practice == "learning" {
+		} else if to_practice == 1 {  
 			flashcard_chosen = learning_flashcards[index_of_question].clone();
 		} else {
 			flashcard_chosen = strong_flashcards[index_of_question].clone();
@@ -164,37 +267,37 @@ fn main() {
 		println!();
 
 		// Both lines required for input handling
-		let mut input = String::new();
-		let _n = io::stdin().read_line(&mut input).unwrap();
+		let input: String = get_user_input();
 
 		println!();
 
 		// Compare actual answer and the input
-		println!("Your answer: {}", input.trim());
+		println!("Your answer: {}", input);
 		println!("Actual answer: {}", flashcard_chosen.answer);
 
-		flashcard_chosen.last_accessed = Local::now().date_naive(); // EVERYTHING will be a single line!
-
-		if input.trim().to_lowercase() == flashcard_chosen.answer.to_lowercase() {
+		if input.to_lowercase() == flashcard_chosen.answer.to_lowercase() {
 			correct = true;			
 		} else {
 			println!("Was your answer correct? (y/n)");
-			let mut input = String::new();
-			let _n = io::stdin().read_line(&mut input).unwrap();
+			let input: String = get_user_input();
 			println!();
 			//println!("Input: {}", input.trim().to_lowercase());
-			if input.trim().to_lowercase() == "y" { // Answer correct
+			if input.to_lowercase() == "y" { // Answer correct
 				correct = true;
-			} else if input.trim().to_lowercase() == "n" { // Answer correct
+			} else if input.to_lowercase() == "n" { // Answer correct
 				correct = false;
 			}
 		}
 		
 		// If cards are correct and this is not the highest tier of cards
 		if correct {
-			if to_practice != "strong" {
+			if to_practice != 2 {
 				// Can move upwards post revision
-				to_move_up.push(index_of_question);
+				if to_practice == 0 {
+					to_move_up.push(weak_flashcards[index_of_question].primary_key);
+				} else {
+					to_move_up.push(learning_flashcards[index_of_question].primary_key);
+				}
 			}
 
 			flashcard_chosen.correct += 1;
@@ -202,9 +305,13 @@ fn main() {
 
 			congratulations(flashcard_chosen);
 		} else {
-			if to_practice != "weak" {
+			if to_practice != 0 {
 				// Can mode downwards post revision
-				to_move_down.push(index_of_question);
+				if to_practice == 1 {
+					to_move_down.push(learning_flashcards[index_of_question].primary_key);
+				} else {
+					to_move_down.push(strong_flashcards[index_of_question].primary_key);
+				}
 			}
 
 			flashcard_chosen.incorrect += 1;
@@ -215,42 +322,64 @@ fn main() {
 		cards_done += 1;
 	}
 
-	// Post revision summary FIX THIS
-	if to_practice == "weak" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), weak_flashcards.clone());
-	} else if to_practice == "learning" {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), learning_flashcards.clone());
+	// Post revision summary
+	if to_practice == 0 {
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), weak_flashcards.clone());
+	} else if to_practice == 1 {
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), learning_flashcards.clone());
 	} else {
-		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(), to_move_down.clone(), strong_flashcards.clone());
+		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
+		 //to_move_down.clone(), strong_flashcards.clone());
 	}
 
-	// ##Cards move up tiers##
-	if to_practice == "weak" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_up.iter().rev() {
-			learning_flashcards.push(weak_flashcards[index].clone());
-			weak_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	// ## Post revision card adjustment ##
+	// Move cards up/down categories and adjust correct/incorrect values
+	// Up
+	to_move_up.sort();
+	if to_practice == 0 {
+		// Move cards upwards to `learning_flashcards`; cat = 1
+		// Modern
+		for &index in to_move_up.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 1, correct = correct + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
-	} else if to_practice == "learning" {
-		// Move cards upwards to `strong_flashcards`
-		for &index in to_move_up.iter().rev() {
-			strong_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	} else if to_practice == 1 {
+		// Move cards upwards to `strong_flashcards`; cat = 2
+		for &index in to_move_up.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 2, correct = correct + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
 	}
 
-	// ##Cards move down tiers##
-	if to_practice == "strong" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_down.iter().rev() {
-			weak_flashcards.push(strong_flashcards[index].clone());
-			strong_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	// Down
+	to_move_down.sort();
+	if to_practice == 2 {
+		// Move cards downwards to `weak_flashcards`
+		for &index in to_move_down.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
-	} else if to_practice == "learning" {
-		// Move cards upwards to `learning_flashcards`
-		for &index in to_move_down.iter().rev() {
-			weak_flashcards.push(learning_flashcards[index].clone());
-			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
+	} else if to_practice == 1 {
+		// Move cards downwards to `weak_flashcards`
+		for &index in to_move_down.iter() {
+			let _ = conn.execute(
+				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				params![index],
+			);
 		}
 	}
+
+	// Revision summary goes here!
+	
+
+
+	Ok(()) // Don't know what this does but the compiler wants it.
 }
