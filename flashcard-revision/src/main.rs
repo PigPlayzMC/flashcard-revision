@@ -13,18 +13,26 @@ pub struct Flashcard {
 	incorrect: i32, // Times the user has gotten the question incorrect
 }
 
-fn add_new_flashcard(ques: String, ans: String) -> Flashcard {
-	// This takes inputs and turns it into a struct
-	// Then returns it.
-	return Flashcard {
-		last_accessed: Local::now().date_naive(), // Doesn't need to be set as it has never been accessed
-		question: ques,
-		answer: ans,
-		correct: 0, // Never answered
-		incorrect: 0, // Never answered
-	}
+// ## SQLite functions ##
+fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
+	// This takes inputs and adds it to the correct database, based on the subject.
+	let _ = conn.execute(
+		"INSERT INTO flashcards (category, question, answer, correct, incorrect)
+		VALUES (?1, ?2, ?3, ?4, ?5)",
+		params![0, ques, ans, 0, 0],
+	);
+	println!("Flashcard added!")
 }
 
+fn clear_database(conn: &Connection) {
+	let _ = conn.execute(
+		"DROP TABLE flashcards",
+		params![],
+	);
+	println!("Table dropped!");
+}
+
+// ## Flashcard revision functions ##
 fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length:usize) -> usize {
 	let mut rng = rand::thread_rng();
 	println!("Randomising card from 0 to {length}");
@@ -88,7 +96,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		"CREATE TABLE IF NOT EXISTS flashcards (
 			id INTEGER PRIMARY KEY,
 			category INTEGER NOT NULL,
-			last_accessed TEXT NOT NULL,
 			question TEXT NOT NULL,
 			answer TEXT NOT NULL,
 			correct INTEGER NOT NULL,
@@ -97,22 +104,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		params![],
 	);
 
+	// Create flashcards
+	let mut creating_flashcards: bool = true;
+	while creating_flashcards == true {
+		println!("Would you like to add a flashcard? (y/n)");
+		let mut input = String::new();
+		let _n = io::stdin().read_line(&mut input).unwrap();
+		if input == "y" {
+			println!("Enter the question:");
+			let mut ques: String = String::new();
+			let _n = io::stdin().read_line(&mut ques).unwrap();
+
+			let mut ans: String = String::new();
+			let _n = io::stdin().read_line( &mut ans).unwrap();
+
+			add_new_flashcard(&conn, ques, ans);
+			/* Creates a new flashcard with the selected question. */
+		} else {
+			creating_flashcards = false;
+		}
+	}
+
 	// ## Operational loop ##
 	// Declare flashcard variables
 	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
 	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
 	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
-
-	// ## Add a flashcard to a subject ##
-	let ques: String = "Hello World!".to_owned();
-	let ans: String = "Hello World!".to_owned();
-	// Add a new flashcard
-	weak_flashcards.push(add_new_flashcard(ques, ans));
-	// ## Add a flashcard to a subject ##
-	let ques: String = "Second!".to_owned();
-	let ans: String = "Second!".to_owned();
-	// Add a new flashcard
-	weak_flashcards.push(add_new_flashcard(ques, ans));
 
 	// ### ### REVISION LOOP ### ###
 	let mut to_practice: &str = "weak"; // Set by user need eventually. Can be "weak", "learning", or "strong"
@@ -277,5 +294,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			learning_flashcards.remove(index); // Removing from the back ensures no shifting issues
 		}
 	}
-Ok(())
+
+	Ok(()) // Don't know what this does but compiler wants it.
 }
