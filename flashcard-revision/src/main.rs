@@ -215,7 +215,7 @@ fn main() {
 		cards_done += 1;
 	}
 
-	// Post revision summary FIX THIS
+	// Post revision summary
 	if to_practice == "weak" {
 		revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
 		 to_move_down.clone(), weak_flashcards.clone());
@@ -228,6 +228,7 @@ fn main() {
 	}
 
 	// ##Cards move up tiers##
+	to_move_up.sort();
 	if to_practice == "weak" {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_up.iter().rev() {
@@ -243,6 +244,7 @@ fn main() {
 	}
 
 	// ##Cards move down tiers##
+	to_move_down.sort();
 	if to_practice == "strong" {
 		// Move cards upwards to `learning_flashcards`
 		for &index in to_move_down.iter().rev() {
