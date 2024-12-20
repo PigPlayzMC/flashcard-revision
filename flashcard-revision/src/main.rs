@@ -2,6 +2,7 @@ use rand::Rng;
 use rusqlite::{params, Connection};
 use core::panic;
 use std::io;
+use chrono::Utc;
 // Will eventually need to use chrono but not now...
 
 // All flashcards follow this structure
@@ -104,6 +105,14 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 			}
 			println!();
 		}
+
+		// Update time of last revision
+		let now = Utc::now();
+		let date: i64 = now.timestamp(); // Seconds since epoch
+		let _ = conn.execute(
+			format!("UPDATE subjects SET date_last_revised = ?1 WHERE name = ?2;").as_str(),
+			params![date, subject_name],
+		);
 	}
 }
 
@@ -118,8 +127,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## SQLite database ##
 	let conn: Connection = Connection::open("flashcards.db")?; // Creates a new database if it doesn't exist or opens it if it does
 
+	// Storage of tables
+	let _ = conn.execute(
+		"CREATE TABLE IF NOT EXISTS subjects (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			date_last_revised INTEGER NOT NULL
+		);", // Stores date as seconds since epoch
+		params![],
+	);
+
 	// Create new table for subject (Instead of database like previously) if not already present
 	let mut subject_name: &str = "business"; // Eventually user input
+
+	// Chrono date getting
+	let now = Utc::now();
+	let mut date: i64 = now.timestamp(); // Seconds since epoch
+
+	// Add newly created subject to list of subjects
+	// Check if subject already exists
+	let query = conn.execute(
+		"SELECT name FROM subjects WHERE name = ?1;",
+		params![subject_name],);
+	if query == Ok(0) {
+		// Subject doesn't exist
+		let _ = conn.execute(
+			"INSERT INTO subjects (name, date_last_revised) VALUES (?1, ?2);",
+			params![subject_name, date],
+		);
+	} else {
+		// Subject exists -> update date afterwards so ignore now.
+	}
+
 	let _ = conn.execute(
 		format!("CREATE TABLE IF NOT EXISTS {} (
 			id INTEGER PRIMARY KEY,
