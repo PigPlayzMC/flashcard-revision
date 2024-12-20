@@ -36,12 +36,37 @@ fn clear_database(conn: &Connection) { // Very scary
 	}
 }
 
+fn remove_flashcard(conn: &Connection, primary_key: i32, subject_name: &str) {
+	let _ = conn.execute(
+		format!("DELETE FROM {} WHERE id = ?1;", subject_name).as_str(),
+		params![primary_key],
+	);
+	println!("Flashcard removed!");
+}
+
+fn display_subjects(conn: &Connection) {
+	let mut stmt = conn.prepare("SELECT name FROM subjects;").unwrap();
+	let subjects = stmt.query_map(params![], |row| {
+		Ok(row.get::<_, String>(0)?)
+	}).unwrap();
+
+	println!("Subjects:");
+	let mut index: i32 = 1;
+	for subject in subjects {
+		println!("{}. {}", index, subject.unwrap_or("ERR: Failed to load...".to_string()));
+		index += 1;
+	}
+
+	println!();
+	println!("Select subject based on id or type 'new' to create a new subject.");
+}
+
 // ## Flashcard revision functions ##
-fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length:usize) -> usize {
-	let mut rng = rand::thread_rng();
+fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length: usize) -> usize {
+	let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
 	println!("Randomising card from 0 to {length}");
 	loop {
-		let rand_number = rng.gen_range(0..length);
+		let rand_number: usize = rng.gen_range(0..length);
 		if list_of_indexes.contains(&rand_number) {
 			// Flash card already done. Retry!
 		} else {
@@ -57,16 +82,16 @@ fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) 
 		params![flashcard.primary_key],
 	);
 
-	let incorrect = conn.execute(
+	let incorrect: Result<usize, rusqlite::Error> = conn.execute(
 		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
 		params![flashcard.primary_key],
 	);
 
-	let correct = correct.unwrap_or(0) as f64;
-	let incorrect = incorrect.unwrap_or(0) as f64;
+	let correct: f64 = correct.unwrap_or(0) as f64;
+	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
 	let accuracy: f64 = correct / (correct + incorrect);
 
-	println!("Well done! Your accuracy is now {}", accuracy);
+	println!("Well done! Your accuracy is now {}.", accuracy);
 }
 
 fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
@@ -81,11 +106,11 @@ fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
 		params![flashcard.primary_key],
 	);
 
-	let correct = correct.unwrap_or(0) as f64;
-	let incorrect = incorrect.unwrap_or(0) as f64;
+	let correct: f64 = correct.unwrap_or(0) as f64;
+	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
 	let accuracy: f64 = correct / (correct + incorrect);
 
-	println!("Whoops! Your accuracy is now {}", accuracy);
+	println!("Whoops! Your accuracy is now {}.", accuracy);
 }
 
 fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, subject_name: &str, conn: &Connection) {
@@ -113,7 +138,7 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 					params![index],
 					|row| row.get(0),
 				);
-				println!("- {:?}", question.unwrap_or("ERR: Not found...".to_string()));
+				println!("- {}", question.unwrap_or("ERR: Not found...".to_string()));
 			}
 			println!();
 		} else {
@@ -128,7 +153,7 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 					params![index],
 					|row| row.get(0),
 				);
-				println!("- {:?}", question.unwrap_or("ERR: Not found...".to_string()));
+				println!("- {}", question.unwrap_or("ERR: Not found...".to_string()));
 			}
 			println!();
 		} else {
@@ -167,7 +192,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	);
 
 	// Create new table for subject (Instead of database like previously) if not already present
-	let mut subject_name: &str = "business"; // Eventually user input
+	display_subjects(&conn);
+	let input: String = get_user_input();
+	let mut subject_name: String = input.clone(); // Will need to be mut in future
 
 	// Chrono date getting
 	let now = Utc::now();
@@ -175,17 +202,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Add newly created subject to list of subjects
 	// Check if subject already exists
-	let query = conn.execute(
-		"SELECT name FROM subjects WHERE name = ?1;",
-		params![subject_name],);
-	if query == Ok(0) {
-		// Subject doesn't exist
+	if input == "new" {
+		println!("Creating new subject. Please enter the name of the subject:");
+		subject_name = get_user_input();
 		let _ = conn.execute(
 			"INSERT INTO subjects (name, date_last_revised) VALUES (?1, ?2);",
 			params![subject_name, date],
 		);
 	} else {
-		// Subject exists -> update date afterwards so ignore now.
+		subject_name = conn.query_row(
+			"SELECT name FROM subjects WHERE id = ?1;",
+			params![subject_name],
+			|row| row.get(0),
+		)?;
 	}
 
 	let _ = conn.execute(
@@ -212,7 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			println!("Enter the answer:");
 			let ans: String = get_user_input();
 
-			add_new_flashcard(&conn, ques, ans, subject_name);
+			add_new_flashcard(&conn, ques, ans, subject_name.as_str());
 			/* Creates a new flashcard with the selected question. */
 		} else {
 			creating_flashcards = false;
@@ -227,7 +256,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// ## Revision loop ##
 	// Set to_practice
-	let mut to_practice: i32;
+	let to_practice: i32;
 	println!("Revise which set? (weak, learning, strong)");
 	let input: String = get_user_input();
 
@@ -235,10 +264,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		to_practice = 0;
 	} else if input == "learning" {
 		to_practice = 1;
-		println!("WARNING: Unsupported!");
 	} else if input == "strong" {
 		to_practice = 2;
-		println!("WARNING: Unsupported!");
 	} else {
 		println!("Invalid input. Defaulting to weak flashcards.");
 		to_practice = 0;
@@ -384,7 +411,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 			);
 			correct_total += 1;
 
-			congratulations(flashcard_chosen, &conn, subject_name);
+			congratulations(flashcard_chosen, &conn, subject_name.as_str());
 		} else {
 			if to_practice != 0 {
 				// Can mode downwards post revision
@@ -400,7 +427,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 				params![index_of_question],
 			);
 
-			commiserations(flashcard_chosen, &conn, subject_name);
+			commiserations(flashcard_chosen, &conn, subject_name.as_str());
 		}
 		
 		cards_done += 1;
@@ -462,7 +489,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Revision summary goes here!
-	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, subject_name, &conn);
+	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, subject_name.as_str(), &conn);
 
 	Ok(()) // Don't know what this does but the compiler wants it.
 }
