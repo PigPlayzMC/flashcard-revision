@@ -63,39 +63,51 @@ fn commiserations(flashcard: Flashcard) {
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
-fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up : Vec<usize>, to_move_down : Vec<usize>, practice_set : Vec<Flashcard>) {
+fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, practice_set: i32, conn: &Connection) {
 	println!();
 	println!("Post flashcard breakdown:");
 	let percent_accuracy: f64 = (correct_total as f64 / cards_practiced as f64) * 100.0;
 	let mut cards= "card";
 
 	if cards_practiced > 1 {
-		cards = "cards";
+		cards = "cards"; 
 	}
 	
-	println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards, correct_total, percent_accuracy);
-	println!();
-	println!("Learning progress breakdown; ");
-
-	if to_move_up.len() > 0 {
-		println!("Cards moving upwards;");
-		for &index in to_move_up.iter() {
-			println!("- {}", practice_set[index].question);
-		}
+	if cards_practiced == 0 {
+		println!("No cards practiced!");
+	} else {
+		println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards, correct_total, percent_accuracy);
 		println!();
-	}
+		println!("Learning progress breakdown; ");
 
-	if to_move_down.len() > 0 {
-		println!("Cards moving down;");
-		for &index in to_move_down.iter() {
-			println!("- {}", practice_set[index].question);
+		if to_move_up.len() > 0 {
+			println!("Cards moving upwards;");
+			for &index in to_move_up.iter() {
+				let question = conn.execute(
+					"SELECT question FROM flashcards WHERE id = ?1;",
+					params![index],
+				);
+				println!("- {:?}", question);
+			}
+			println!();
 		}
-		println!();
+
+		if to_move_down.len() > 0 {
+			println!("Cards moving down;");
+			for &index in to_move_down.iter() {
+				let question = conn.execute(
+					"SELECT question FROM flashcards WHERE id = ?1;",
+					params![index],
+				);
+				println!("- {:?}", question);
+			}
+			println!();
+		}
 	}
 }
 
 // ## General functions ##
-fn get_user_input() -> String { // Not to be used until codebase adjusted to use this function!!!
+fn get_user_input() -> String { // New standard for handling user input.
 	let mut input: String = String::new();
 	let _n = io::stdin().read_line(&mut input).unwrap();
 	return input.trim().to_string();
@@ -378,8 +390,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Revision summary goes here!
-	
-
+	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, to_practice, &conn);
 
 	Ok(()) // Don't know what this does but the compiler wants it.
 }

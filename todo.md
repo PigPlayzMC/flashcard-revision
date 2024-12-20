@@ -6,3 +6,4 @@
 5. Start using get_user_input rather than two individual lines per input obtaining ✅
 6. Fix revision summary
 7. Support multiple subjects (Creating new DBs)
+8. Only one db with several tables!!!
