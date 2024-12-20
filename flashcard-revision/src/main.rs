@@ -3,7 +3,6 @@ use rusqlite::{params, Connection};
 use core::panic;
 use std::io;
 use chrono::Utc;
-// Will eventually need to use chrono but not now...
 
 // All flashcards follow this structure
 #[derive(Clone)]
@@ -11,8 +10,6 @@ pub struct Flashcard {
 	primary_key: i32, // Primary key of the flashcard
 	question: String, // Question or front text of the card
 	answer: String, // Answer or back text of the card
-	correct: i32, // Times the user has gotten the question correct
-	incorrect: i32, // Times the user has gotten the question incorrect
 }
 
 // ## SQLite functions ##
@@ -53,13 +50,41 @@ fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length:usize) -> usize 
 	}
 }
 
-fn congratulations(flashcard: Flashcard) {
-	let accuracy: f64 = (flashcard.correct / (flashcard.correct + flashcard.incorrect)).into();
+fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
+	// correct/answers
+	let correct: Result<usize, rusqlite::Error> = conn.execute(
+		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
+		params![flashcard.primary_key],
+	);
+
+	let incorrect = conn.execute(
+		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
+		params![flashcard.primary_key],
+	);
+
+	let correct = correct.unwrap_or(0) as f64;
+	let incorrect = incorrect.unwrap_or(0) as f64;
+	let accuracy: f64 = correct / (correct + incorrect);
+
 	println!("Well done! Your accuracy is now {}", accuracy);
 }
 
-fn commiserations(flashcard: Flashcard) {
-	let accuracy:f64 = (flashcard.correct / (flashcard.correct + flashcard.incorrect)).into();
+fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
+	// correct/answers
+	let correct: Result<usize, rusqlite::Error> = conn.execute(
+		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
+		params![flashcard.primary_key],
+	);
+
+	let incorrect = conn.execute(
+		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
+		params![flashcard.primary_key],
+	);
+
+	let correct = correct.unwrap_or(0) as f64;
+	let incorrect = incorrect.unwrap_or(0) as f64;
+	let accuracy: f64 = correct / (correct + incorrect);
+
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
@@ -80,30 +105,34 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 		println!();
 		println!("Learning progress breakdown; ");
 
+		println!("Cards moving upwards;");
 		if to_move_up.len() > 0 {
-			println!("Cards moving upwards;");
 			for &index in to_move_up.iter() {
 				let question: Result<String, rusqlite::Error> = conn.query_row(
 					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
 					params![index],
 					|row| row.get(0),
 				);
-				println!("- {:?}", question);
+				println!("- {:?}", question.unwrap_or("ERR: Not found...".to_string()));
 			}
 			println!();
+		} else {
+			println!("None!")
 		}
 
+		println!("Cards moving down;");
 		if to_move_down.len() > 0 {
-			println!("Cards moving down;");
 			for &index in to_move_down.iter() {
 				let question: Result<String, rusqlite::Error> = conn.query_row(
 					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
 					params![index],
 					|row| row.get(0),
 				);
-				println!("- {:?}", question);
+				println!("- {:?}", question.unwrap_or("ERR: Not found...".to_string()));
 			}
 			println!();
+		} else {
+			println!("None!")
 		}
 
 		// Update time of last revision
@@ -142,7 +171,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Chrono date getting
 	let now = Utc::now();
-	let mut date: i64 = now.timestamp(); // Seconds since epoch
+	let date: i64 = now.timestamp(); // Seconds since epoch
 
 	// Add newly created subject to list of subjects
 	// Check if subject already exists
@@ -232,8 +261,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 					primary_key: row.get(0)?,
 					question: row.get(2)?,
 					answer: row.get(3)?,
-					correct: row.get(4)?,
-					incorrect: row.get(5)?,
 				})
 			},
 		);
@@ -303,7 +330,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		let index_of_question:usize  = get_random_flashcard(cards_selected.clone(), length_of_set);
 		cards_selected.push(index_of_question);
 		
-		let mut flashcard_chosen: Flashcard;
+		let flashcard_chosen: Flashcard;
 		if to_practice == 0 {
 			flashcard_chosen = weak_flashcards[index_of_question].clone();
 		} else if to_practice == 1 {  
@@ -351,10 +378,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 				}
 			}
 
-			flashcard_chosen.correct += 1;
+			let _ = conn.execute(
+				format!("UPDATE {} SET correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
+				params![index_of_question],
+			);
 			correct_total += 1;
 
-			congratulations(flashcard_chosen);
+			congratulations(flashcard_chosen, &conn, subject_name);
 		} else {
 			if to_practice != 0 {
 				// Can mode downwards post revision
@@ -365,9 +395,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 				}
 			}
 
-			flashcard_chosen.incorrect += 1;
+			let _ = conn.execute(
+				format!("UPDATE {} SET incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
+				params![index_of_question],
+			);
 
-			commiserations(flashcard_chosen);
+			commiserations(flashcard_chosen, &conn, subject_name);
 		}
 		
 		cards_done += 1;
@@ -394,7 +427,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Modern
 		for &index in to_move_up.iter() {
 			let _ = conn.execute(
-				format!("UPDATE {} SET category = 1, correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
+				format!("UPDATE {} SET category = 1 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -402,7 +435,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards upwards to `strong_flashcards`; cat = 2
 		for &index in to_move_up.iter() {
 			let _ = conn.execute(
-				format!("UPDATE {} SET category = 1, correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
+				format!("UPDATE {} SET category = 2 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -414,7 +447,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards downwards to `weak_flashcards`
 		for &index in to_move_down.iter() {
 			let _ = conn.execute(
-				format!("UPDATE {} SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
+				format!("UPDATE {} SET category = 0 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -422,7 +455,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards downwards to `weak_flashcards`
 		for &index in to_move_down.iter() {
 			let _ = conn.execute(
-				format!("UPDATE {} SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
+				format!("UPDATE {} SET category = 0 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
