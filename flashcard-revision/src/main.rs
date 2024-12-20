@@ -15,20 +15,19 @@ pub struct Flashcard {
 }
 
 // ## SQLite functions ##
-fn add_new_flashcard(conn: &Connection, ques: String, ans: String) {
+fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name: &str) {
 	// This takes inputs and adds it to the correct database, based on the subject.
 	let _ = conn.execute(
-		"INSERT INTO flashcards (category, question, answer, correct, incorrect)
-		VALUES (?1, ?2, ?3, ?4, ?5);",
+		format!("INSERT INTO {} (category, question, answer, correct, incorrect) VALUES (?1, ?2, ?3, ?4, ?5);", subject_name).as_str(),
 		params![0, ques, ans, 0, 0],
 	);
 	println!("Flashcard added!")
 }
 
 fn clear_database(conn: &Connection) { // Very scary
-	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/n)");
+	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/N)"); // Default no
 	let input: String = get_user_input();
-	if input == "y" {
+	if input.to_lowercase() == "y" {
 		let _ = conn.execute(
 			"DROP TABLE flashcards;",
 			params![],
@@ -63,7 +62,7 @@ fn commiserations(flashcard: Flashcard) {
 	println!("Whoops! Your accuracy is now {}", accuracy);
 }
 
-fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, practice_set: i32, conn: &Connection) {
+fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, subject_name: &str, conn: &Connection) {
 	println!();
 	println!("Post flashcard breakdown:");
 	let percent_accuracy: f64 = (correct_total as f64 / cards_practiced as f64) * 100.0;
@@ -72,7 +71,7 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 	if cards_practiced > 1 {
 		cards = "cards"; 
 	}
-	
+
 	if cards_practiced == 0 {
 		println!("No cards practiced!");
 	} else {
@@ -83,9 +82,10 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 		if to_move_up.len() > 0 {
 			println!("Cards moving upwards;");
 			for &index in to_move_up.iter() {
-				let question = conn.execute(
-					"SELECT question FROM flashcards WHERE id = ?1;",
+				let question: Result<String, rusqlite::Error> = conn.query_row(
+					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
 					params![index],
+					|row| row.get(0),
 				);
 				println!("- {:?}", question);
 			}
@@ -95,9 +95,10 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 		if to_move_down.len() > 0 {
 			println!("Cards moving down;");
 			for &index in to_move_down.iter() {
-				let question = conn.execute(
-					"SELECT question FROM flashcards WHERE id = ?1;",
+				let question: Result<String, rusqlite::Error> = conn.query_row(
+					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
 					params![index],
+					|row| row.get(0),
 				);
 				println!("- {:?}", question);
 			}
@@ -115,19 +116,19 @@ fn get_user_input() -> String { // New standard for handling user input.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## SQLite database ##
-	let mut subject_name: &str = "business"; // Eventually user input
-	let conn: Connection = Connection::open(subject_name.to_owned() + ".db")?; // Creates a new database if it doesn't exist or opens it if it does
+	let conn: Connection = Connection::open("flashcards.db")?; // Creates a new database if it doesn't exist or opens it if it does
 
-	// Create flashcards table if not already present
+	// Create new table for subject (Instead of database like previously) if not already present
+	let mut subject_name: &str = "business"; // Eventually user input
 	let _ = conn.execute(
-		"CREATE TABLE IF NOT EXISTS flashcards (
+		format!("CREATE TABLE IF NOT EXISTS {} (
 			id INTEGER PRIMARY KEY,
 			category INTEGER NOT NULL,
 			question TEXT NOT NULL,
 			answer TEXT NOT NULL,
 			correct INTEGER NOT NULL,
 			incorrect INTEGER NOT NULL
-		);", // For category; 0 = weak, 1 = learning, 2 = strong
+		);", subject_name).as_str(), // For category; 0 = weak, 1 = learning, 2 = strong
 		params![],
 	);
 
@@ -138,14 +139,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		let input: String = get_user_input();
 		if input == "y" {
 			println!("Enter the question:");
-			let mut ques: String = String::new();
-			let _n: usize = io::stdin().read_line(&mut ques).unwrap();
+			let ques: String = get_user_input();
 
 			println!("Enter the answer:");
-			let mut ans: String = String::new();
-			let _n: usize = io::stdin().read_line( &mut ans).unwrap();
+			let ans: String = get_user_input();
 
-			add_new_flashcard(&conn, ques, ans);
+			add_new_flashcard(&conn, ques, ans, subject_name);
 			/* Creates a new flashcard with the selected question. */
 		} else {
 			creating_flashcards = false;
@@ -180,13 +179,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## Load flashcards from the database ##
 	// Select relevant flashcards from the database.
 	// Then add them into a vector.
-	let mut stmt: rusqlite::Statement<'_> = conn.prepare("SELECT id FROM flashcards WHERE category = ?1;")?;
+	let query = format!("SELECT id FROM {} WHERE category = ?1;", subject_name);
+	let mut stmt: rusqlite::Statement<'_> = conn.prepare(&query)?;
 	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
 
 	for id_result in ids {
 	let id: i32 = id_result?;
 		let flashcard: Result<Flashcard, rusqlite::Error> = conn.query_row(
-			"SELECT * FROM flashcards WHERE id = ?1",
+			format!("SELECT * FROM {} WHERE id = ?1;", subject_name).as_str(),
 			params![id],
 			|row| {
 				Ok(Flashcard {
@@ -202,7 +202,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		if flashcard.is_err() {
 			panic!("Error selecting flashcard from the database.");
 		} else {
-			let flashcard = flashcard.unwrap();
+			let flashcard: Flashcard = flashcard.unwrap();
 			if to_practice == 0 {
 				weak_flashcards.push(flashcard);
 			} else if to_practice == 1 {
@@ -355,7 +355,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Modern
 		for &index in to_move_up.iter() {
 			let _ = conn.execute(
-				"UPDATE flashcards SET category = 1, correct = correct + 1 WHERE id = ?1;",
+				format!("UPDATE {} SET category = 1, correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -363,7 +363,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards upwards to `strong_flashcards`; cat = 2
 		for &index in to_move_up.iter() {
 			let _ = conn.execute(
-				"UPDATE flashcards SET category = 2, correct = correct + 1 WHERE id = ?1;",
+				format!("UPDATE {} SET category = 1, correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -375,7 +375,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards downwards to `weak_flashcards`
 		for &index in to_move_down.iter() {
 			let _ = conn.execute(
-				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				format!("UPDATE {} SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
@@ -383,14 +383,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// Move cards downwards to `weak_flashcards`
 		for &index in to_move_down.iter() {
 			let _ = conn.execute(
-				"UPDATE flashcards SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;",
+				format!("UPDATE {} SET category = 0, incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
 				params![index],
 			);
 		}
 	}
 
 	// Revision summary goes here!
-	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, to_practice, &conn);
+	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, subject_name, &conn);
 
 	Ok(()) // Don't know what this does but the compiler wants it.
 }

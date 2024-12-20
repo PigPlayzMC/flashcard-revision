@@ -8,7 +8,6 @@ This program aims to allow users to revise flashcards in the most efficient way,
  **Upcoming features**  
  *In no priority order*  
  	- GUI.  
-  	- Save and load of flashcard sets.  
    	- User flashcard creation.  
 	- Subject grouping.  
 
