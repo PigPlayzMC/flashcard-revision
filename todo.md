@@ -10,7 +10,7 @@
 
 7. Only one db with several tables!!! ✅
 8. Support multiple subjects (Creating new tables) ✅/2
-    - Allow creation of new sets and selection
+    - Allow creation of new sets and selection ✅
 9. Support revision of learning, and strong flashcards ✅
 10. Allow for correct to be incremented regardless of which set is being revised (ATM this means that revising strong flashcards has no statistical effect) ✅
 11. Optomise random index selection (Vec of can choose which is removed from!)
@@ -19,5 +19,6 @@
 14. Proper randomisation of flashcards (Seems to be selecting same each time?) {Actually doesn't seem to be an issue!} ✅
 15. Fix accuracy for cards (Think it goes off of the struct rather than the db) ✅
 16. Edit flashcard function ✅
+17. Fix accuracy of individual flashcards not being reported correctly ✅
 
 ## Issues ##
