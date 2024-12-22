@@ -1,3 +1,6 @@
+//* For best comment formatting, please use Better Comments extension (VSCode)\
+
+// ## Imports ##
 use rand::Rng;
 use rusqlite::{params, Connection};
 use core::panic;
@@ -7,12 +10,13 @@ use chrono::Utc;
 // All flashcards follow this structure
 #[derive(Clone)]
 pub struct Flashcard {
-	primary_key: i32, // Primary key of the flashcard
+	primary_key: i32, // Primary key of the flashcard in the subject's table (Not the subject table)
 	question: String, // Question or front text of the card
 	answer: String, // Answer or back text of the card
 }
 
 // ## SQLite functions ##
+//* Creates new flashcard */
 fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name: &str) {
 	// This takes inputs and adds it to the correct database, based on the subject.
 	let _ = conn.execute(
@@ -22,7 +26,10 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name:
 	println!("Flashcard added!")
 }
 
-fn clear_database(conn: &Connection) { // Very scary
+//* Drops ENTIRE table*/
+// Broken - Needs fixing
+fn clear_database(conn: &Connection) {
+	//! VERY SCARY - USE WITH CAUTION
 	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/N)"); // Default no
 	let input: String = get_user_input();
 	if input.to_lowercase() == "y" {
@@ -36,6 +43,7 @@ fn clear_database(conn: &Connection) { // Very scary
 	}
 }
 
+//* Remove specified flashcard from the subject table */
 fn remove_flashcard(conn: &Connection, primary_key: i32, subject_name: &str) {
 	let _ = conn.execute(
 		format!("DELETE FROM {} WHERE id = ?1;", subject_name).as_str(),
@@ -44,6 +52,7 @@ fn remove_flashcard(conn: &Connection, primary_key: i32, subject_name: &str) {
 	println!("Flashcard removed!");
 }
 
+//* Edit either the answer or question of a specified flashcard */
 fn edit_flashcard(conn: &Connection, primary_key: i32, subject_name: &str, field_to_change: i32, new_value: String) {
 	// Changes a field on the flashcard (0 = question, 1 = answer)
 	if field_to_change == 0 {
