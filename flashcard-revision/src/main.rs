@@ -217,7 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Add newly created subject to list of subjects
 	// Check if subject already exists
-	if input == "new" {
+	if input == "new".to_owned() {
 		println!("Creating new subject. Please enter the name of the subject:");
 		subject_name = get_user_input();
 		let _ = conn.execute(
@@ -422,7 +422,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			let _ = conn.execute(
 				format!("UPDATE {} SET correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
-				params![index_of_question],
+				params![flashcard_chosen.primary_key],
 			);
 			correct_total += 1;
 
@@ -439,7 +439,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			let _ = conn.execute(
 				format!("UPDATE {} SET incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
-				params![index_of_question],
+				params![flashcard_chosen.primary_key],
 			);
 
 			commiserations(flashcard_chosen, &conn, subject_name.as_str());
