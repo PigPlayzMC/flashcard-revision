@@ -92,38 +92,53 @@ fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length: usize) -> usize
 
 fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
 	// correct/answers
-	let correct: Result<usize, rusqlite::Error> = conn.execute(
+	let correct: Result<i32, rusqlite::Error> = conn.query_row(
 		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
 		params![flashcard.primary_key],
+		|row| row.get(0),
 	);
 
-	let incorrect: Result<usize, rusqlite::Error> = conn.execute(
+	let incorrect: Result<i32, rusqlite::Error> = conn.query_row(
 		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
 		params![flashcard.primary_key],
+		|row| row.get(0),
 	);
 
 	let correct: f64 = correct.unwrap_or(0) as f64;
 	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
-	let accuracy: f64 = correct / (correct + incorrect);
+	let total_attempts: f64 = correct + incorrect;
+	let accuracy: f64;
+	if total_attempts == 0.0 {
+		accuracy = 1.0;
+	} else {
+		accuracy = correct / total_attempts;
+	}
 
 	println!("Well done! Your accuracy is now {}.", accuracy);
 }
 
 fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
-	// correct/answers
-	let correct: Result<usize, rusqlite::Error> = conn.execute(
+	let correct: Result<i32, rusqlite::Error> = conn.query_row(
 		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
 		params![flashcard.primary_key],
+		|row| row.get(0),
 	);
 
-	let incorrect = conn.execute(
+	let incorrect: Result<i32, rusqlite::Error> = conn.query_row(
 		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
 		params![flashcard.primary_key],
+		|row| row.get(0),
 	);
 
 	let correct: f64 = correct.unwrap_or(0) as f64;
 	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
-	let accuracy: f64 = correct / (correct + incorrect);
+	let total_attempts = correct + incorrect;
+	let accuracy: f64;
+	if total_attempts == 0.0 {
+		accuracy = 0.0;
+	} else {
+		accuracy = correct / total_attempts;
+	}
 
 	println!("Whoops! Your accuracy is now {}.", accuracy);
 }

@@ -21,6 +21,3 @@
 16. Edit flashcard function ✅
 
 ## Issues ##
-
-- not marking as correct appropriately (second!!)
-- not displaying accuracy correctly (when initialising flashcard set.)
