@@ -18,6 +18,7 @@
 13. Fix wierdness with displaying card movements in revision summary ✅
 14. Proper randomisation of flashcards (Seems to be selecting same each time?) {Actually doesn't seem to be an issue!} ✅
 15. Fix accuracy for cards (Think it goes off of the struct rather than the db) ✅
+16. Edit flashcard function ✅
 
 ## Issues ##
 

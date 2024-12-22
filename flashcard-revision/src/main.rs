@@ -44,6 +44,21 @@ fn remove_flashcard(conn: &Connection, primary_key: i32, subject_name: &str) {
 	println!("Flashcard removed!");
 }
 
+fn edit_flashcard(conn: &Connection, primary_key: i32, subject_name: &str, field_to_change: i32, new_value: String) {
+	// Changes a field on the flashcard (0 = question, 1 = answer)
+	if field_to_change == 0 {
+		let _ = conn.execute(
+			format!("UPDATE {} SET question = ?1 WHERE id = ?2;", subject_name).as_str(),
+			params![new_value, primary_key],
+		);
+	} else if field_to_change == 1 {
+		let _ = conn.execute(
+			format!("UPDATE {} SET answer = ?1 WHERE id = ?2;", subject_name).as_str(),
+			params![new_value, primary_key],
+		);
+	}
+}
+
 fn display_subjects(conn: &Connection) {
 	let mut stmt = conn.prepare("SELECT name FROM subjects;").unwrap();
 	let subjects = stmt.query_map(params![], |row| {
