@@ -27,7 +27,7 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name:
 }
 
 //* Drops ENTIRE table*/
-// Broken - Needs fixing
+// Broken - Needs fixing (Subject name)
 fn clear_database(conn: &Connection) {
 	//! VERY SCARY - USE WITH CAUTION
 	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/N)"); // Default no

@@ -20,5 +20,6 @@
 15. Fix accuracy for cards (Think it goes off of the struct rather than the db) ✅
 16. Edit flashcard function ✅
 17. Fix accuracy of individual flashcards not being reported correctly ✅
+18. Fix clear_database
 
 ## Issues ##
