@@ -13,13 +13,12 @@
     - Allow creation of new sets and selection ✅
 9. Support revision of learning, and strong flashcards ✅
 10. Allow for correct to be incremented regardless of which set is being revised (ATM this means that revising strong flashcards has no statistical effect) ✅
-11. Optomise random index selection (Vec of can choose which is removed from!)
-12. Fix issue with autorecognition of flashcard inputs (Not trimming user inputs) ✅
-13. Fix wierdness with displaying card movements in revision summary ✅
-14. Proper randomisation of flashcards (Seems to be selecting same each time?) {Actually doesn't seem to be an issue!} ✅
-15. Fix accuracy for cards (Think it goes off of the struct rather than the db) ✅
-16. Edit flashcard function ✅
-17. Fix accuracy of individual flashcards not being reported correctly ✅
-18. Fix clear_database
+11. Fix issue with autorecognition of flashcard inputs (Not trimming user inputs) ✅
+12. Fix wierdness with displaying card movements in revision summary ✅
+13. Proper randomisation of flashcards (Seems to be selecting same each time?) {Actually doesn't seem to be an issue!} ✅
+14. Fix accuracy for cards (Think it goes off of the struct rather than the db) ✅
+15. Edit flashcard function ✅
+16. Fix accuracy of individual flashcards not being reported correctly ✅
+17. Fix clear_database ✅
 
 ## Issues ##

@@ -28,18 +28,19 @@ fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name:
 
 //* Drops ENTIRE table*/
 // Broken - Needs fixing (Subject name)
-fn clear_database(conn: &Connection) {
+fn clear_database(conn: &Connection, subject_name: &str) {
 	//! VERY SCARY - USE WITH CAUTION
-	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to clear the database? (y/N)"); // Default no
+	// This clears the specified table. This is irreversible.
+	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to remove this subject? (y/N)"); // Default no
 	let input: String = get_user_input();
 	if input.to_lowercase() == "y" {
 		let _ = conn.execute(
-			"DROP TABLE flashcards;",
+			format!("DROP TABLE {};", subject_name).as_str(),
 			params![],
 		);
-		println!("Database dropped!");
+		println!("Table cleared!");
 	} else {
-		println!("Database not dropped.");
+		println!("Table not cleared.");
 	}
 }
 
