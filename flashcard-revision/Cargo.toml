@@ -7,3 +7,4 @@ edition = "2021"
 rand = "0.8.5"
 chrono = "0.4.39"
 rusqlite = {version = "0.32.1", features = ["bundled"]}
+winit = "0.30.7"

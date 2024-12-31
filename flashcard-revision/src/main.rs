@@ -3,9 +3,61 @@
 // ## Imports ##
 use rand::Rng;
 use rusqlite::{params, Connection};
+use winit::application::ApplicationHandler;
 use core::panic;
 use std::io;
 use chrono::Utc;
+
+// ## Winit imports ##
+use winit::event_loop::EventLoop;
+use winit::window::Window;
+use winit::event::WindowEvent;
+use winit::event_loop::ControlFlow;
+
+#[derive(Default)]
+struct App {
+	window: Option<Window>,
+}
+
+// Window redraw behaviour
+impl ApplicationHandler for App {
+	fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+		self.window = Some(event_loop.create_window(Window::default_attributes()).unwrap());
+		self.window.as_ref().unwrap().set_visible(true);
+		self.window.as_ref().unwrap().set_title("Flashcard App");
+	}
+
+	fn window_event(
+			&mut self,
+			event_loop: &winit::event_loop::ActiveEventLoop,
+			window_id: winit::window::WindowId,
+			event: winit::event::WindowEvent,
+		) {
+			match event {
+				WindowEvent::CloseRequested => {
+					println!("The close button was pressed; stopping");
+					event_loop.exit();
+				},
+				WindowEvent::RedrawRequested => {
+					/* Redraw the application.
+					It's preferable for applications that do not render continuously to render in
+					this event rather than in AboutToWait, since rendering in here allows
+					the program to gracefully handle redraws requested by the OS.
+	
+					Draw.
+	
+					Queue a RedrawRequested event.
+					
+					You only need to call this if you've determined that you need to redraw in
+					applications which do not always need to. Applications that redraw continuously
+					can render here instead. */
+					self.window.as_ref().unwrap().request_redraw();
+					// Only redraws when needed (OS event)
+				}
+				_ => (),
+			}
+		}
+}
 
 // All flashcards follow this structure
 #[derive(Clone)]
@@ -69,6 +121,7 @@ fn edit_flashcard(conn: &Connection, primary_key: i32, subject_name: &str, field
 	}
 }
 
+//* List all created subjects stored in the database */
 fn display_subjects(conn: &Connection) {
 	let mut stmt = conn.prepare("SELECT name FROM subjects;").unwrap();
 	let subjects = stmt.query_map(params![], |row| {
@@ -87,6 +140,7 @@ fn display_subjects(conn: &Connection) {
 }
 
 // ## Flashcard revision functions ##
+//* Returns the index of a random flashcard from those selected */
 fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length: usize) -> usize {
 	let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
 	println!("Randomising card from 0 to {length}");
@@ -100,6 +154,7 @@ fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length: usize) -> usize
 	}
 }
 
+//* Congratulates user on successful flashcard answer */
 fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
 	// correct/answers
 	let correct: Result<i32, rusqlite::Error> = conn.query_row(
@@ -127,6 +182,7 @@ fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) 
 	println!("Well done! Your accuracy is now {}.", accuracy);
 }
 
+//* Provides accuracy of question in the event of an incorrect answer */
 fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
 	let correct: Result<i32, rusqlite::Error> = conn.query_row(
 		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
@@ -153,6 +209,7 @@ fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
 	println!("Whoops! Your accuracy is now {}.", accuracy);
 }
 
+//* Summarises this revision session */
 fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, subject_name: &str, conn: &Connection) {
 	println!();
 	println!("Post flashcard breakdown:");
@@ -211,6 +268,7 @@ fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<
 }
 
 // ## General functions ##
+//* Gets user input from console */
 fn get_user_input() -> String { // New standard for handling user input.
 	let mut input: String = String::new();
 	let _n = io::stdin().read_line(&mut input).unwrap();
@@ -233,12 +291,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Create new table for subject (Instead of database like previously) if not already present
 	display_subjects(&conn);
+
 	let input: String = get_user_input();
 	let mut subject_name: String = input.clone(); // Will need to be mut in future
 
 	// Chrono date getting
 	let now = Utc::now();
 	let date: i64 = now.timestamp(); // Seconds since epoch
+
+	// ## Window creation ##
+	////let mut window_visibility: bool = true; // Adjust to use later
+	let event_loop: EventLoop<()> = EventLoop::new().unwrap();
+	event_loop.set_control_flow(ControlFlow::Wait); // Only redraws when needed (OS event)
+
+	let mut app = App::default();
+    let _ = event_loop.run_app(&mut app);
 
 	// Add newly created subject to list of subjects
 	// Check if subject already exists

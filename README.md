@@ -12,7 +12,6 @@ This program aims to allow users to revise flashcards in the most efficient way,
  *In no priority order*  
 
 - GUI.  
-  - User flashcard creation.  
-    - Subject grouping.  
+- User flashcard creation.  
 
  **Existing issues:**  
