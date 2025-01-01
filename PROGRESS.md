@@ -1,3 +1,3 @@
 # Progress made in creating a user interface #
 
-- Literally nothing
+- Blank window loads with correct title
