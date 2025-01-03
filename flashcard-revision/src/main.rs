@@ -1,8 +1,11 @@
-use macroquad::prelude::*; // Handles window display
+use std::fs;
 
+use macroquad::prelude::*; // Handles window display
 use rusqlite::{ // Handles SQLite database
 	Connection,
-	params};
+	params
+};
+use toml::Table; // Handles TOML files for configuration and preferences
 
 fn conf() -> Conf {
 	Conf {
@@ -36,10 +39,49 @@ fn get_centre(font: Font, font_size: u16, text: &str) -> Vec2 {
 	return centre;
 }
 
+fn save_settings(settings: Table) {
+	// Write settings to file
+	fs::write("./src/settings.toml",
+	toml::to_string(&settings)
+	.expect("Cannot convert settings to string")
+	.as_bytes())
+	.expect("Cannot write settings to settings.toml");
+}
+
 #[macroquad::main(conf)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	// Retrieve settings from db
-	let fullscreen: bool = false;
+	// ## User settings ##
+	// Settings variables
+	let settings: Table;
+	let fullscreen: bool;
+
+	// Create or read settings file
+	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
+		// Settings file does not exist :(
+		info!("Creating settings file...");
+		// Create settings file
+		settings = toml::toml! {
+			fullscreen = false
+		};
+
+		// Set settings
+		fullscreen = settings.get("fullscreen").expect("Cannot retrieve fullscreen setting from settings.toml")
+		.as_bool()
+		.expect("Fullscreen setting is not a boolean");
+
+		// Save settings to file
+		save_settings(settings);
+	} else {
+		// Settings file exists :)
+		info!("Loading settings.toml...");
+		// Load settings file
+		settings = toml::from_str(fs::read_to_string("./src/settings.toml").expect("Cannot read settings.toml").as_str()).expect("Cannot parse settings.toml");
+		
+		// Retrieve settings from db
+		fullscreen = settings.get("fullscreen").expect("Cannot retrieve fullscreen setting from settings.toml")
+		.as_bool()
+		.expect("Fullscreen setting is not a boolean");
+	}
 
 	// Display loading screen
 	loading_screen(fullscreen).await;
@@ -57,8 +99,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			name TEXT NOT NULL,
 			date_weak_revised INTEGER NOT NULL,
 			date_learning_revised INTEGER NOT NULL,
-			date_strong_revised INTEGER NOT NULL,
+			date_strong_revised INTEGER NOT NULL
 		);", // Stores dates as seconds since epoch
+		params![],
+	);
+
+	// Application settings to retrieve/create
+	let _ = conn.execute(
+		"CREATE TABLE IF NOT EXISTS settings (
+			id INTEGER PRIMARY KEY,
+			fullscreen BOOLEAN NOT NULL,
+			number_of_subjects INTEGER NOT NULL
+			);",
 		params![],
 	);
 
