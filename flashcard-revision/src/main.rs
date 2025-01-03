@@ -39,6 +39,16 @@ fn get_centre(font: Font, font_size: u16, text: &str) -> Vec2 {
 	return centre;
 }
 
+fn get_length(text: &str, font_size: u16, font: &Font) -> TextDimensions {
+	let dimensions: TextDimensions = measure_text(
+		text,
+		Some(font),
+		font_size,
+		1.0);
+
+	return dimensions;
+}
+
 fn save_settings(settings: Table) {
 	// Write settings to file
 	fs::write("./src/settings.toml",
@@ -126,8 +136,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut stage: u8 = 0;
 	
 	// General colours
-	let background_colour: Color = Color::from_rgba(0, 0, 0, 255);
-	let text_colour: Color = Color::from_rgba(222, 222, 222, 255);
+	let background_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(0, 0, 0)
+	let text_colour: Color = Color::from_rgba(222, 222, 222, 255); //rgb(222, 222, 222)
+	let box_purple: Color = Color::from_rgba(103, 40, 250, 255); //rgb(103, 40, 250)
 
 	// Card colours
 	////let weak_colour = todo!();
@@ -145,27 +156,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// # Settings button #
 
 			// # Subject selection box #
+			let text = "Select a subject from the list or create a new one!";
+
+			let text_dimensions: TextDimensions = get_length(text, 40, &open_sans_reg);
+
+			info!("Text dimensions: {:?}", text_dimensions);
+
+			draw_rectangle(
+				screen_width()/2.0 - text_dimensions.width / 2.0 - 5.0,
+				60.0,
+				text_dimensions.width + 10.0,
+				60.0,
+				box_purple);
+			
+			draw_circle(
+				screen_height()-text_dimensions.width/1.5 - 20.0,
+				90.0,
+				text_dimensions.height/2.0 + 10.0,
+				box_purple);
+
+			// # Subject selection instructions #
 			let centre: Vec2 = get_centre(
 				open_sans_reg.clone(),
 				40,
-				"Select a subject from the list or create a new one!",
-			);
+				text,);
 
-			// # Subject selection instructions #
 			draw_text_ex(
-				"Select a subject from the list or create a new one!",
+				&text,
 				screen_width()/2.0 - centre.x,
 				100.0,
 				TextParams {
 					font: Some(&open_sans_reg),
 					font_size: 40,
 					color: text_colour,
-					..Default::default()
-				},
-			);
+					..Default::default()},);
 			
 			// # Subject list box #
-			draw_rectangle(0.0, 100.0, 120.0, 60.0, GREEN);
+			draw_rectangle(screen_width()/2.0-60.0, screen_height()/2.0-30.0, 120.0, 60.0, box_purple);
 
 			// # Subjects #
 
