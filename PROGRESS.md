@@ -1,4 +1,6 @@
 # Progress made in creating a user interface #
 
-- Blank window loads with correct title
-- Can list valid adapters
+- Window
+- Title
+- Load page
+- Settings toml
