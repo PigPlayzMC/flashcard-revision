@@ -1,10 +1,12 @@
-use std::fs;
+use std::fs; // Handles reading and writing files
 
 use macroquad::prelude::*; // Handles window display
+
 use rusqlite::{ // Handles SQLite database
 	Connection,
 	params
 };
+
 use toml::Table; // Handles TOML files for configuration and preferences
 
 fn conf() -> Conf {
@@ -150,6 +152,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	loop {
 		clear_background(background_colour);
 
+		// Debug fps statement
+		draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, text_colour);
+
 		if stage == 0 {
 			// # Select subjects #
 			
@@ -160,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			let text_dimensions: TextDimensions = get_length(text, 40, &open_sans_reg);
 
-			info!("Text dimensions: {:?}", text_dimensions);
+			////info!("Text dimensions: {:?}", text_dimensions);
 
 			draw_rectangle(
 				screen_width()/2.0 - text_dimensions.width / 2.0 - 5.0,
