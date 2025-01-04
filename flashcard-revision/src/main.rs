@@ -227,12 +227,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 				////info!("{}", centre.y);
 				let offset: f32 = index as f32 * (centre.y * -2.0) + 200.0;
+				// ^^ centre.y is a negative value ^^
 
 				// Display each subject's name
 				draw_text_ex(
 					&text,
 					screen_width() / 2.0 - centre.x,
-					offset, // Format in future
+					offset,
 					TextParams {
 						font: Some(&open_sans_reg),
 						font_size: 40,
@@ -240,9 +241,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						..Default::default()},);
 				
 				index += 1;
-			}
-
-			// # Subjects #
+			} // End of subject display loop
 
 			// # Forward/Back buttons #
 			if num_of_subjects > 10 {
