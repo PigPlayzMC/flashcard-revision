@@ -137,6 +137,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Subject settings
 	let subjects: Vec<String> = get_subject_names(conn);
 	// ^^ This will need updating when the database is updated later in the program ^^
+	let page: i32 = 0; // This allows for one page per subject so should not be too small
+	let subjects_per_page: i32 = 6; // Must update to be based on screen size
 
 	let mut creating_subject: bool = false;
 
@@ -204,38 +206,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// # Subject list box #
 			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
 			for subject in &subjects {
-				let subject_text = (index + 1).to_string() + ". " + subject;
-				text = &subject_text;
+				if index >= page * subjects_per_page {
+					if index < page * subjects_per_page + subjects_per_page {
+						let subject_text = (index + 1).to_string() + ". " + subject;
+						text = &subject_text;
 
-				let centre = get_centre(
-					open_sans_reg.clone(),
-					40,
-					text,
-				);
+						let centre = get_centre(
+							open_sans_reg.clone(),
+							40,
+							text,
+						);
 
-				////info!("{}", centre.y);
-				let offset: f32 = index as f32 * (centre.y * -2.0) + 200.0;
-				// ^^ centre.y is a negative value ^^
+						////info!("{}", centre.y);
+						let offset: f32 = index as f32 * 62.5 + 200.0;
+						// ^^ centre.y is a negative value ^^
 
-				draw_rectangle(screen_width()/2.0-60.0, screen_height()/2.0-30.0, 120.0, 60.0, bounding_box);
+						draw_rectangle(screen_width()/2.0-60.0,
+							screen_height()/2.0-30.0,
+							120.0,
+							60.0,
+							bounding_box
+						);
+						// ^^ Adjust to use  ^^
 
-				// Display each subject's name
-				draw_text_ex(
-					&text,
-					screen_width() / 2.0 - centre.x,
-					offset,
-					TextParams {
-						font: Some(&open_sans_reg),
-						font_size: 40,
-						color: text_colour,
-						..Default::default()},
-				);
-				
-				index += 1;
+						// Display each subject's name
+						draw_text_ex(
+							&text,
+							screen_width() / 2.0 - centre.x,
+							offset,
+							TextParams {
+								font: Some(&open_sans_reg),
+								font_size: 40,
+								color: text_colour,
+								..Default::default()},
+						);
+						
+						index += 1;
+					}
+				}
 			} // End of subject display loop
 
 			// # Forward/Back buttons #
-			if num_of_subjects > 10 {
+			if num_of_subjects > 6 { // 6 subjects is maximum for display
 				// Placeholder values
 				todo!();
 			} // Otherwise don't display
@@ -275,7 +287,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// Handle edge case
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
-					error!("Cannot create subject: Maximum number (65,535) of subjects reached.");
+					error!("Cannot create subject: Maximum number (65,535) o
+					f subjects reached.");
 				} else {
 					// Create a subject
 				}
