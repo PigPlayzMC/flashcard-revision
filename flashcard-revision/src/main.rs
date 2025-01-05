@@ -149,7 +149,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// General colours
 	let background_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(0, 0, 0)
 	let text_colour: Color = Color::from_rgba(222, 222, 222, 255); //rgb(222, 222, 222)
-	let box_purple: Color = Color::from_rgba(103, 40, 250, 255); //rgb(103, 40, 250)
+	let bounding_box: Color = Color::from_rgba(0, 80, 27, 255);    //rgb(0, 80, 27)
+	// ^^ Alpha must be set to 0 in production ^^
 
 	// Card colours
 	////let weak_colour = todo!();
@@ -176,31 +177,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			
 			// # Settings button #
 
-			// # Subject selection box #
+			// # Subject selection bounding_box #
 			text = "Select a subject from the list or create a new one!";
 
-			let text_dimensions: TextDimensions = get_length(text, 40, &open_sans_reg);
-
+			////let text_dimensions: TextDimensions = get_length(text, 40, &open_sans_reg); // For debug
 			////info!("Text dimensions: {:?}", text_dimensions);
-
-			draw_rectangle(
-				screen_width()/2.0 - text_dimensions.width / 2.0 - 5.0,
-				60.0,
-				text_dimensions.width + 10.0,
-				60.0,
-				box_purple);
-			
-			draw_circle(
-				screen_height()-text_dimensions.width/1.5 - 20.0,
-				90.0,
-				text_dimensions.height/2.0 + 10.0,
-				box_purple);
 
 			// # Subject selection instructions #
 			let centre: Vec2 = get_centre(
 				open_sans_reg.clone(),
 				40,
-				text,);
+				text,
+			);
 
 			draw_text_ex(
 				&text,
@@ -210,11 +198,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					font: Some(&open_sans_reg),
 					font_size: 40,
 					color: text_colour,
-					..Default::default()},);
+					..Default::default()},
+			);
 			
 			// # Subject list box #
-			draw_rectangle(screen_width()/2.0-60.0, screen_height()/2.0-30.0, 120.0, 60.0, box_purple);
-
 			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
 			for subject in &subjects {
 				let subject_text = (index + 1).to_string() + ". " + subject;
@@ -223,11 +210,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				let centre = get_centre(
 					open_sans_reg.clone(),
 					40,
-					text,);
+					text,
+				);
 
 				////info!("{}", centre.y);
 				let offset: f32 = index as f32 * (centre.y * -2.0) + 200.0;
 				// ^^ centre.y is a negative value ^^
+
+				draw_rectangle(screen_width()/2.0-60.0, screen_height()/2.0-30.0, 120.0, 60.0, bounding_box);
 
 				// Display each subject's name
 				draw_text_ex(
@@ -238,7 +228,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						font: Some(&open_sans_reg),
 						font_size: 40,
 						color: text_colour,
-						..Default::default()},);
+						..Default::default()},
+				);
 				
 				index += 1;
 			} // End of subject display loop
@@ -250,12 +241,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			} // Otherwise don't display
 
 			// # Create new subject button #
+			// Button
+			draw_ellipse(
+				screen_width() / 2.0,
+				screen_height() - screen_height() / 8.0,
+				150.0,
+				35.0,
+				0.0,
+				bounding_box
+			);
+
+			text = "Add subject";
+
+			let centre: Vec2 = get_centre(
+				open_sans_reg.clone(),
+				40,
+				text,
+			);
+	
+			draw_text_ex(
+				&text,
+				screen_width()/2.0 - centre.x,
+				screen_height() - screen_height() / 8.0 - centre.y / 2.0,
+				TextParams {
+					font: Some(&open_sans_reg),
+					font_size: 40,
+					color: text_colour,
+					..Default::default()},
+			);
+
 			// Code for creating new subject
 			
 			// Handle edge case
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
 					error!("Cannot create subject: Maximum number (65,535) of subjects reached.");
+				} else {
+					// Create a subject
 				}
 			}
 
