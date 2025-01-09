@@ -21,4 +21,4 @@ Cargo.lock
 #.idea/
 *.db
 settings.toml
-flashcard-revision/src/.DS_Store
+*.ds_store
