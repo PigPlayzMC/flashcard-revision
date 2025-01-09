@@ -4,3 +4,8 @@
 - Title
 - Load page
 - Settings toml
+
+
+## Assets ##
+- Revision warning
+- Settings action required notification
