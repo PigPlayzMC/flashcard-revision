@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	loading_screen(fullscreen).await;
 
 	// Font
-	let open_sans_reg: Font = load_ttf_font("./src/assets/OpenSans-Regular.ttf").await.unwrap();
+	let open_sans_reg: Font = load_ttf_font("./src/assets/fonts/OpenSans-Regular.ttf").await.unwrap();
 
 	// ## SQLite database ##
 	let conn: Connection = Connection::open("flashcards.db")?; // Creates/opens database
