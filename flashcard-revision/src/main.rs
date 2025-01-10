@@ -50,6 +50,12 @@ fn get_length(text: &str, font_size: u16, font: &Font) -> TextDimensions {
 	return dimensions;
 }
 
+async fn load_stage_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name ,path.as_str());
+	return load_texture(&path).await.unwrap();
+}
+
 fn save_settings(settings: Table) {
 	// Write settings to file
 	fs::write("./src/settings.toml",
@@ -119,11 +125,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!();
 	info!("Loading textures...");
 
-	info!("Loading header...");
-	let header: Texture2D = Texture2D::from_file_with_format(
-		include_bytes!("../src/assets/images/stage_elements/header.png"),
-		None,
-	);
+	let header: Texture2D = load_stage_element("header.png").await;
+	let up_button: Texture2D = load_stage_element("up_button.png").await;
 
 	info!("Texture load complete!");
 	println!();
