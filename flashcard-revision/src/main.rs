@@ -115,6 +115,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Display loading screen
 	loading_screen(fullscreen).await;
 
+	// Load textures
+	println!();
+	info!("Loading textures...");
+
+	info!("Loading header...");
+	let header: Texture2D = Texture2D::from_file_with_format(
+		include_bytes!("../src/assets/images/stage_elements/header.png"),
+		None,
+	);
+
+	info!("Texture load complete!");
+	println!();
+
 	// Font
 	let open_sans_reg: Font = load_ttf_font("./src/assets/fonts/OpenSans-Regular.ttf").await.unwrap();
 
@@ -179,29 +192,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			
 			// # Settings button #
 
-			// # Subject selection bounding_box #
-			text = "Select a subject from the list or create a new one!";
-
-			////let text_dimensions: TextDimensions = get_length(text, 40, &open_sans_reg); // For debug
-			////info!("Text dimensions: {:?}", text_dimensions);
-
-			// # Subject selection instructions #
-			let centre: Vec2 = get_centre(
-				open_sans_reg.clone(),
-				40,
-				text,
+			// # Draw header #
+			draw_texture_ex(
+				&header,
+				screen_width()/2.0 - 460.0,
+				0.0,
+				WHITE,
+				DrawTextureParams {
+					source: Some(Rect::new(0.0, 0.0, 920., 80.)),
+					..Default::default()
+				},
 			);
-
-			draw_text_ex(
-				&text,
-				screen_width()/2.0 - centre.x,
-				100.0,
-				TextParams {
-					font: Some(&open_sans_reg),
-					font_size: 40,
-					color: text_colour,
-					..Default::default()},
-			);
+			
 			
 			// # Subject list box #
 			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
