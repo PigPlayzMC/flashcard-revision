@@ -1,6 +1,6 @@
 use std::fs; // Handles reading and writing files
 
-use macroquad::prelude::*; // Handles window display
+use macroquad::{prelude::*, texture}; // Handles window display
 
 use rusqlite::{ // Handles SQLite database
 	params, Connection
@@ -50,10 +50,17 @@ fn get_length(text: &str, font_size: u16, font: &Font) -> TextDimensions {
 	return dimensions;
 }
 
-async fn load_stage_element(file_name: &str) -> Texture2D {
-	let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
-	info!("Loading {0} from path: {1}", file_name ,path.as_str());
-	return load_texture(&path).await.unwrap();
+async fn load_stage_element(file_name: &str) -> Result<Texture2D, String> {
+    let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
+    info!("Loading {0} from path: {1}", file_name, path.as_str());
+
+    match load_texture(&path).await {
+        Ok(texture) => Ok(texture),
+        Err(e) => {
+            error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+            Err(format!("Failed to load texture from path: {}. Error: {:?}", path, e))
+        }
+    }
 }
 
 fn save_settings(settings: Table) {
