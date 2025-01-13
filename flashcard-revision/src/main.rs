@@ -50,17 +50,27 @@ fn get_length(text: &str, font_size: u16, font: &Font) -> TextDimensions {
 	return dimensions;
 }
 
-async fn load_stage_element(file_name: &str) -> Result<Texture2D, String> {
-    let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
-    info!("Loading {0} from path: {1}", file_name, path.as_str());
+async fn load_stage_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name, path.as_str());
+	let result_ok: Texture2D;
 
-    match load_texture(&path).await {
-        Ok(texture) => Ok(texture),
-        Err(e) => {
-            error!("Failed to load texture from path: {}. Error: {:?}", path, e);
-            Err(format!("Failed to load texture from path: {}. Error: {:?}", path, e))
-        }
-    }
+	let result: Result<Texture2D, String> = match load_texture(&path).await {
+		Ok(texture) => Ok(texture),
+		Err(e) => {
+			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+			Err(format!("Load fallback texture")) // No semicolon *important*
+		}
+	};
+
+	if result == Err("Load fallback texture".to_owned()) {
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load");
+		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
+		let result: Result<Texture2D, macroquad::Error> = load_texture(&recovery_path).await;
+	};
+
+	result_ok = result;
+	return result_ok
 }
 
 fn save_settings(settings: Table) {
