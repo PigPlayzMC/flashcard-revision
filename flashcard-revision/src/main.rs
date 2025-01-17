@@ -1,9 +1,10 @@
 use std::fs; // Handles reading and writing files
 
-use macroquad::{prelude::*, texture}; // Handles window display
+use macroquad::prelude::*; // Handles window display
 
 use rusqlite::{ // Handles SQLite database
-	params, Connection
+	params,
+	Connection,
 };
 
 use toml::Table; // Handles TOML files for configuration and preferences
@@ -55,7 +56,7 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 	info!("Loading {0} from path: {1}", file_name, path.as_str());
 	let result_ok: Texture2D;
 
-	let result: Result<Texture2D, String> = match load_texture(&path).await {
+	let mut result: Result<Texture2D, String> = match load_texture(&path).await {
 		Ok(texture) => Ok(texture),
 		Err(e) => {
 			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
@@ -63,13 +64,25 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 		}
 	};
 
+	if let Err(e) = &result {
+		info!("{}", e);
+	}
+
+
 	if result == Err("Load fallback texture".to_owned()) {
-		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load");
+		info!("Attempting to load fallback texture");
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
 		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
-		let result: Result<Texture2D, macroquad::Error> = load_texture(&recovery_path).await;
+		result = match load_texture(&recovery_path).await {
+			Ok(texture) => Ok(texture),
+			Err(e) => {
+				error!("Irrecoverable");
+				Err(format!("Don't delete textures."))
+			}
+		};
 	};
 
-	result_ok = result;
+	result_ok = result.unwrap();
 	return result_ok
 }
 
