@@ -18,10 +18,46 @@ struct States {
 }
 
 fn conf() -> Conf {
+	// Load the icon at runtime
+    let icon_small = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_small.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
+
+	let icon_medium = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_medium.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
+
+	let icon_big = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_big.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
+
 	Conf {
 		window_title: "Flashcard Application".to_owned(),
 		fullscreen:false,
 		high_dpi:true, // May cause issues in the future but yolo
+		window_width:984,
+		window_height:668,
+		window_resizable:true,
+		icon: Some(miniquad::conf::Icon {
+			small: icon_small
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+			medium: icon_medium
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+			big: icon_big
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+		}),
 		..Default::default()
 	}
 }
@@ -110,6 +146,10 @@ fn get_subject_names(conn: Connection) -> Vec<String> {
 
 #[macroquad::main(conf)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	// ## Icon ##
+	let path: &str = "icon.icns";
+	load_image(path);
+
 	// ## User settings ##
 	// Settings variables
 	let settings: Table;
