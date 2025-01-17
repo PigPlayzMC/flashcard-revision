@@ -2,12 +2,20 @@ use std::fs; // Handles reading and writing files
 
 use macroquad::prelude::*; // Handles window display
 
+use miniquad::window::dpi_scale;
 use rusqlite::{ // Handles SQLite database
 	params,
 	Connection,
 };
 
 use toml::Table; // Handles TOML files for configuration and preferences
+
+struct States {
+	up: bool,
+	add: bool,
+	down: bool,
+	settings: bool,
+}
 
 fn conf() -> Conf {
 	Conf {
@@ -17,12 +25,8 @@ fn conf() -> Conf {
 	}
 }
 
-async fn loading_screen(fullscreen: bool) {
+async fn loading_screen() {
 	request_new_screen_size(984.0 , 668.0); // Ensures that the window is the correct size from start.
-
-	if fullscreen == true {
-		set_fullscreen(true);
-	}
 
 	debug!("Loading...");
 	clear_background(Color::from_rgba(0, 0, 0, 1));
@@ -71,10 +75,11 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 	if result == Err("Load fallback texture".to_owned()) {
 		info!("Attempting to load fallback texture");
 		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
+		// Hours spent trying to work out why path wasn't working without .png: 3
 		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
 		result = match load_texture(&recovery_path).await {
 			Ok(texture) => Ok(texture),
-			Err(e) => {
+			Err(_e) => {
 				error!("Irrecoverable");
 				Err(format!("Don't delete textures."))
 			}
@@ -82,6 +87,7 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 	};
 
 	result_ok = result.unwrap();
+	result_ok.set_filter(FilterMode::Linear);
 	return result_ok
 }
 
@@ -107,11 +113,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Settings variables
 	let settings: Table;
 	let mut fullscreen: bool;
-	let mut num_of_subjects: u16 = 0; // "If anyone needs more than 65,535 subjects, they have a problem" - Copilot
+	let mut num_of_subjects: u16 = 0; // "If anyone needs more than 65,535 subjects, they... have a problem" - Copilot
 	// ^^ Needs a default value to prevent uninitialized variable error ^^
+	
+	info!("Miniquad DPI: {}", dpi_scale());
+	info!("Macroquad DPI: {}", screen_dpi_scale());
+
+	// Struct to control whether buttons need to be gray or purple
+	let states = States {
+		up: false,
+		down: false,
+		add: false,
+		settings: false,
+	};
 
 	// Application variables
 	let mut text: &str;
+	let mut texture_chosen: &Texture2D ;
 
 	// Create or read settings file
 	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
@@ -144,18 +162,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		num_of_subjects = settings.get("number_of_subjects").expect("Cannot retrieve number_of_subjects setting from settings.toml")
 		.as_integer()
 		.expect("Subject number setting is not an integer")
-		as u16;
+		as u16; //* Remember to change if number of subjects needs updating */
+	}
+
+	if fullscreen == true {
+		set_fullscreen(true);
 	}
 
 	// Display loading screen
-	loading_screen(fullscreen).await;
+	loading_screen().await;
 
 	// Load textures
 	println!();
 	info!("Loading textures...");
 
+	// Main elements
 	let header: Texture2D = load_stage_element("header.png").await;
+
+	let flashcard_box: Texture2D = load_stage_element("flashcard_box.png").await;
+
+	// Buttons
 	let up_button: Texture2D = load_stage_element("up_button.png").await;
+	let up_button_pressed: Texture2D = load_stage_element("up_button_pressed.png").await;
+
+	let down_button: Texture2D = load_stage_element("down_button.png").await;
+	let down_button_pressed: Texture2D = load_stage_element("down_button_pressed.png").await;
+
+	let add_button: Texture2D = load_stage_element("add_button.png").await;
+	let add_button_pressed: Texture2D = load_stage_element("add_button_pressed.png").await;
+
+	let settings: Texture2D = load_stage_element("settings_button.png").await;
+	let settings_pressed: Texture2D = load_stage_element("settings_button_pressed.png").await;
 
 	info!("Texture load complete!");
 	println!();
@@ -231,21 +268,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				0.0,
 				WHITE,
 				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 920., 80.)),
+					source: Some(Rect::new(0.0, 0.0, 920.0, 80.0)),
 					..Default::default()
 				},
 			);
 			
-			
 			// # Subject list box #
+			draw_texture_ex(
+				&flashcard_box,
+				screen_width()/2.0-460.0,
+				screen_height()/2.0-364.0,
+				WHITE,
+				DrawTextureParams {
+					source: Some(Rect::new(0.0,0.0, 920.0, 728.0)),
+					..Default::default()
+				},
+			);
+
+			// # Up button #
+			if states.up == true {
+				texture_chosen = &up_button_pressed;
+			} else {
+				texture_chosen = &up_button
+			}
+			draw_texture_ex(
+				texture_chosen,
+				600.-180.,
+				screen_height()-screen_height()*17./108., 
+				WHITE,
+				DrawTextureParams {
+					source: Some(Rect::new(0.0,0.0,120.0,120.0)),
+					..Default::default()
+				});
+
 			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
 			for subject in &subjects {
 				if index >= page * subjects_per_page {
 					if index < page * subjects_per_page + subjects_per_page {
-						let subject_text = (index + 1).to_string() + ". " + subject;
+						let subject_text: String = (index + 1).to_string() + ". " + subject;
 						text = &subject_text;
 
-						let centre = get_centre(
+						let centre: Vec2 = get_centre(
 							open_sans_reg.clone(),
 							40,
 							text,
@@ -254,14 +317,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						////info!("{}", centre.y);
 						let offset: f32 = index as f32 * 62.5 + 200.0;
 						// ^^ centre.y is a negative value ^^
-
-						draw_rectangle(screen_width()/2.0-60.0,
-							screen_height()/2.0-30.0,
-							120.0,
-							60.0,
-							bounding_box
-						);
-						// ^^ Adjust to use  ^^
 
 						// Display each subject's name
 						draw_text_ex(
@@ -287,34 +342,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			} // Otherwise don't display
 
 			// # Create new subject button #
-			// Button
-			draw_ellipse(
-				screen_width() / 2.0,
-				screen_height() - screen_height() / 8.0,
-				150.0,
-				35.0,
-				0.0,
-				bounding_box
-			);
-
-			text = "Add subject";
-
-			let centre: Vec2 = get_centre(
-				open_sans_reg.clone(),
-				40,
-				text,
-			);
-	
-			draw_text_ex(
-				&text,
-				screen_width()/2.0 - centre.x,
-				screen_height() - screen_height() / 8.0 - centre.y / 2.0,
-				TextParams {
-					font: Some(&open_sans_reg),
-					font_size: 40,
-					color: text_colour,
-					..Default::default()},
-			);
+			
 
 			// Code for creating new subject
 			
