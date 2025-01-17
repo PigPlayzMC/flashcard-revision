@@ -21,6 +21,7 @@ fn conf() -> Conf {
 	Conf {
 		window_title: "Flashcard Application".to_owned(),
 		fullscreen:false,
+		high_dpi:true, // May cause issues in the future but yolo
 		..Default::default()
 	}
 }
@@ -80,7 +81,7 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 		result = match load_texture(&recovery_path).await {
 			Ok(texture) => Ok(texture),
 			Err(_e) => {
-				error!("Irrecoverable");
+				error!("Irrecoverable!!!");
 				Err(format!("Don't delete textures."))
 			}
 		};
@@ -268,7 +269,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				0.0,
 				WHITE,
 				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 920.0, 80.0)),
+					source: Some(Rect::new(0.0, 0.0, 1840.0, 160.0)), // Use the full size of the texture
+					dest_size: Some(Vec2::new(920.0, 80.0)), // Resize to fit 920 by 728
 					..Default::default()
 				},
 			);
@@ -280,7 +282,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				screen_height()/2.0-364.0,
 				WHITE,
 				DrawTextureParams {
-					source: Some(Rect::new(0.0,0.0, 920.0, 728.0)),
+					source: Some(Rect::new(0.0, 0.0, 1840.0, 1456.0)), // Use the full size of the texture
+					dest_size: Some(Vec2::new(920.0, 728.0)), // Resize to fit 920 by 728
 					..Default::default()
 				},
 			);
@@ -349,8 +352,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// Handle edge case
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
-					error!("Cannot create subject: Maximum number (65,535) o
-					f subjects reached.");
+					error!("Cannot create subject: Maximum number (65,535) of subjects reached.");
 				} else {
 					// Create a subject
 				}
