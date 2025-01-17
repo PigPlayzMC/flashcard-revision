@@ -68,7 +68,6 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 		info!("{}", e);
 	}
 
-
 	if result == Err("Load fallback texture".to_owned()) {
 		info!("Attempting to load fallback texture");
 		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
