@@ -27,3 +27,4 @@ Issues;
 Solution;
 - Stop being stupid. Can't measure width with a missized title element...
 - Fix title element scaling to also be in accordance with reality
+- Text must be written on during runtime to avoid stretching as the window is resized.

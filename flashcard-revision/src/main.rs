@@ -308,14 +308,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// # Settings button #
 
 			// # Draw header #
+			width = 920.0/1920.0*screen_width();
+			height = 80.0/1080.0*screen_height();
+			info!("{}", height);
 			draw_texture_ex(
 				&header,
-				screen_width()/2.0 - 460.0,
-				0.0,
+				screen_width()/2.0 - width/2.0,
+				52.0,
 				WHITE,
 				DrawTextureParams {
 					source: Some(Rect::new(0.0, 0.0, 1840.0, 160.0)), // Use the full size of the texture
-					dest_size: Some(Vec2::new(920.0, 80.0)), // Resize to fit 920 by 80
+					dest_size: Some(Vec2::new(width, height)), // Resize to fit 920 by 80 or that ratio
 					..Default::default()
 				},
 			);
@@ -323,8 +326,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// # Subject list box #
 			width = 920.0/1920.0*screen_width();
 			height = 728.0/1080.0*screen_height();
-			info!("Box width: {}", width);
-			info!("Box height: {}", height);
+			////info!("Box width: {}", width);
+			////info!("Box height: {}", height);
 			draw_texture_ex(
 				&flashcard_box,
 				screen_width()/2.0-width/2.0,
