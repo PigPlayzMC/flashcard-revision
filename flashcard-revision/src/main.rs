@@ -146,10 +146,6 @@ fn get_subject_names(conn: Connection) -> Vec<String> {
 
 #[macroquad::main(conf)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	// ## Icon ##
-	let path: &str = "icon.icns";
-	load_image(path);
-
 	// ## User settings ##
 	// Settings variables
 	let settings: Table;
@@ -170,7 +166,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Application variables
 	let mut text: &str;
-	let mut texture_chosen: &Texture2D ;
+	let mut texture_chosen: &Texture2D;
+	let mut width: f32;
+	let mut height: f32;
 
 	// Create or read settings file
 	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
@@ -287,11 +285,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	info!("Settings:");
 	info!("Fullscreen: {}", fullscreen);
 	info!("Number of subjects: {}", num_of_subjects);
+	// Info environment statements
+	info!("Screen width: {}", screen_width()); // On my machine: 984 by 668
+	info!("Screen height: {}", screen_height());
 	println!();
 
 	// ## Main loop ##
 	debug!("Main loop reached...");
 	loop {
+		// Info environment statements
+		info!("Screen width: {}", screen_width()); // On my machine: 1440 by 900
+		info!("Screen height: {}", screen_height());
+
 		clear_background(background_colour);
 
 		// Debug fps statement
@@ -310,28 +315,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				WHITE,
 				DrawTextureParams {
 					source: Some(Rect::new(0.0, 0.0, 1840.0, 160.0)), // Use the full size of the texture
-					dest_size: Some(Vec2::new(920.0, 80.0)), // Resize to fit 920 by 728
+					dest_size: Some(Vec2::new(920.0, 80.0)), // Resize to fit 920 by 80
 					..Default::default()
 				},
 			);
 			
 			// # Subject list box #
+			width = 920.0/1920.0*screen_width();
+			height = 728.0/1080.0*screen_height();
+			info!("Box width: {}", width);
+			info!("Box height: {}", height);
 			draw_texture_ex(
 				&flashcard_box,
-				screen_width()/2.0-460.0,
-				screen_height()/2.0-364.0,
+				screen_width()/2.0-width/2.0,
+				screen_height()/2.0-height/2.0,
 				WHITE,
 				DrawTextureParams {
 					source: Some(Rect::new(0.0, 0.0, 1840.0, 1456.0)), // Use the full size of the texture
-					dest_size: Some(Vec2::new(920.0, 728.0)), // Resize to fit 920 by 728
+					dest_size: Some(Vec2::new(width, height)),
 					..Default::default()
 				},
 			);
 
 			// # Up button #
-			if states.up == true {
+			if states.up == true { // Has been pressed / is unavaliable
 				texture_chosen = &up_button_pressed;
-			} else {
+			} else { // Has not been pressed
 				texture_chosen = &up_button
 			}
 			draw_texture_ex(
@@ -341,6 +350,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				WHITE,
 				DrawTextureParams {
 					source: Some(Rect::new(0.0,0.0,120.0,120.0)),
+					dest_size: Some(Vec2::new(60.0, 60.0)), // Resize to fit
 					..Default::default()
 				});
 
