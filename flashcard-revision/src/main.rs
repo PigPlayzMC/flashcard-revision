@@ -216,24 +216,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	info!("Loading textures...");
 
 	// Main elements
-	let header: Texture2D = load_stage_element("header.png").await;
-
-	let flashcard_box: Texture2D = load_stage_element("flashcard_box.png").await;
-
-	// Buttons
-	let up_button: Texture2D = load_stage_element("up_button.png").await;
-	let up_button_pressed: Texture2D = load_stage_element("up_button_pressed.png").await;
-
-	let down_button: Texture2D = load_stage_element("down_button.png").await;
-	let down_button_pressed: Texture2D = load_stage_element("down_button_pressed.png").await;
-
-	let add_button: Texture2D = load_stage_element("add_button.png").await;
-	let add_button_pressed: Texture2D = load_stage_element("add_button_pressed.png").await;
-
-	let settings: Texture2D = load_stage_element("settings_button.png").await;
-	let settings_pressed: Texture2D = load_stage_element("settings_button_pressed.png").await;
-
+	// Stages
 	let stage0_no_blank: Texture2D = load_stage_element("stage0_no_blank.png").await;
+	let stage0_arrows_blank: Texture2D = load_stage_element("stage0_arrows_blank.png").await;
+
+	// Icons
+	let settings_notification: Texture2D = load_stage_element("settings_notification.png").await;
 
 	info!("Texture load complete!");
 	println!();
@@ -305,18 +293,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, text_colour);
 
 		if stage == 0 {
-			// # Select subjects #
-			
-			// # Settings button #
-
+			// # Forward/Back buttons #
+			if num_of_subjects > 6 { // 6 subjects is maximum for display
+				// Display buttons in purple
+				texture_chosen = &stage0_no_blank;
+			} else { // Otherwise don't display
+				// Display buttons in gray
+				texture_chosen = &stage0_arrows_blank;
+			}
 			// # Draw stage #
 			width = (3840.0/1920.0*screen_width())/2.0;
 			// Original width to height ratio = 3840:2160 = 16:9
 			// So height must equal width/16*9
+			// Could also consider doing this based on height as this seems to be the limiting
+			// factor on my display
 			height = width/16.0*9.0;
-			////info!("{}", height);
 			draw_texture_ex(
-				&stage0_no_blank,
+				&texture_chosen,
 				screen_width()/2.0 - width/2.0,
 				0.0,
 				WHITE,
@@ -326,12 +319,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					..Default::default()
 				},
 			);// End of subject display loop
-
-			// # Forward/Back buttons #
-			if num_of_subjects > 6 { // 6 subjects is maximum for display
-				// Placeholder values
-				todo!();
-			} // Otherwise don't display
 
 			// # Create new subject button #
 			
