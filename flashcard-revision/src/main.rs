@@ -286,16 +286,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	info!("Fullscreen: {}", fullscreen);
 	info!("Number of subjects: {}", num_of_subjects);
 	// Info environment statements
-	info!("Screen width: {}", screen_width()); // On my machine: 984 by 668
-	info!("Screen height: {}", screen_height());
+	////info!("Screen width: {}", screen_width()); // On my machine: 984 by 668
+	////info!("Screen height: {}", screen_height());
 	println!();
 
 	// ## Main loop ##
 	debug!("Main loop reached...");
 	loop {
 		// Info environment statements
-		info!("Screen width: {}", screen_width()); // On my machine: 1440 by 900
-		info!("Screen height: {}", screen_height());
+		////info!("Screen width: {}", screen_width()); // On my machine: 1440 by 900
+		////info!("Screen height: {}", screen_height());
 
 		clear_background(background_colour);
 
@@ -310,7 +310,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			// # Draw header #
 			width = 920.0/1920.0*screen_width();
 			height = 80.0/1080.0*screen_height();
-			info!("{}", height);
+			////info!("{}", height);
 			draw_texture_ex(
 				&header,
 				screen_width()/2.0 - width/2.0,
@@ -346,14 +346,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			} else { // Has not been pressed
 				texture_chosen = &up_button
 			}
+			width = 120.0/1920.0*screen_width();
+			height = width;
 			draw_texture_ex(
 				texture_chosen,
-				600.-180.,
+				600.-width*1.5,
 				screen_height()-screen_height()*17./108., 
 				WHITE,
 				DrawTextureParams {
 					source: Some(Rect::new(0.0,0.0,120.0,120.0)),
-					dest_size: Some(Vec2::new(60.0, 60.0)), // Resize to fit
+					dest_size: Some(Vec2::new(width, height)), // Resize to fit
 					..Default::default()
 				});
 
