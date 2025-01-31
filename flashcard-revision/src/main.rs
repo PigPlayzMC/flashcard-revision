@@ -233,6 +233,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let settings: Texture2D = load_stage_element("settings_button.png").await;
 	let settings_pressed: Texture2D = load_stage_element("settings_button_pressed.png").await;
 
+	let stage0_no_blank: Texture2D = load_stage_element("stage0_no_blank.png").await;
+
 	info!("Texture load complete!");
 	println!();
 
@@ -307,91 +309,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			
 			// # Settings button #
 
-			// # Draw header #
-			width = 920.0/1920.0*screen_width();
-			height = 80.0/1080.0*screen_height();
+			// # Draw stage #
+			width = (3840.0/1920.0*screen_width())/2.0;
+			// Original width to height ratio = 3840:2160 = 16:9
+			// So height must equal width/16*9
+			height = width/16.0*9.0;
 			////info!("{}", height);
 			draw_texture_ex(
-				&header,
+				&stage0_no_blank,
 				screen_width()/2.0 - width/2.0,
-				52.0,
+				0.0,
 				WHITE,
 				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 1840.0, 160.0)), // Use the full size of the texture
-					dest_size: Some(Vec2::new(width, height)), // Resize to fit 920 by 80 or that ratio
-					..Default::default()
-				},
-			);
-			
-			// # Subject list box #
-			width = 920.0/1920.0*screen_width();
-			height = 728.0/1080.0*screen_height();
-			////info!("Box width: {}", width);
-			////info!("Box height: {}", height);
-			draw_texture_ex(
-				&flashcard_box,
-				screen_width()/2.0-width/2.0,
-				screen_height()/2.0-height/2.0,
-				WHITE,
-				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 1840.0, 1456.0)), // Use the full size of the texture
+					source: Some(Rect::new(0.0, 0.0, 3840.0, 2160.0)), // Use the full size of the texture
 					dest_size: Some(Vec2::new(width, height)),
 					..Default::default()
 				},
-			);
-
-			// # Up button #
-			if states.up == true { // Has been pressed / is unavaliable
-				texture_chosen = &up_button_pressed;
-			} else { // Has not been pressed
-				texture_chosen = &up_button
-			}
-			width = 120.0/1920.0*screen_width();
-			height = width;
-			draw_texture_ex(
-				texture_chosen,
-				600.-width*1.5,
-				screen_height()-screen_height()*17./108., 
-				WHITE,
-				DrawTextureParams {
-					source: Some(Rect::new(0.0,0.0,120.0,120.0)),
-					dest_size: Some(Vec2::new(width, height)), // Resize to fit
-					..Default::default()
-				});
-
-			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
-			for subject in &subjects {
-				if index >= page * subjects_per_page {
-					if index < page * subjects_per_page + subjects_per_page {
-						let subject_text: String = (index + 1).to_string() + ". " + subject;
-						text = &subject_text;
-
-						let centre: Vec2 = get_centre(
-							open_sans_reg.clone(),
-							40,
-							text,
-						);
-
-						////info!("{}", centre.y);
-						let offset: f32 = index as f32 * 62.5 + 200.0;
-						// ^^ centre.y is a negative value ^^
-
-						// Display each subject's name
-						draw_text_ex(
-							&text,
-							screen_width() / 2.0 - centre.x,
-							offset,
-							TextParams {
-								font: Some(&open_sans_reg),
-								font_size: 40,
-								color: text_colour,
-								..Default::default()},
-						);
-						
-						index += 1;
-					}
-				}
-			} // End of subject display loop
+			);// End of subject display loop
 
 			// # Forward/Back buttons #
 			if num_of_subjects > 6 { // 6 subjects is maximum for display
