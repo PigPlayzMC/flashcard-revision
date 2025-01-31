@@ -250,7 +250,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ^^ This will need updating when the database is updated later in the program ^^
 	let page: i32 = 0; // This allows for one page per subject so should not be too small
 	let subjects_per_page: i32 = 6; // Must update to be based on screen size
-
 	let mut creating_subject: bool = false;
 
 	/* Stage settings
@@ -319,12 +318,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					..Default::default()
 				},
 			);// End of subject display loop
-
-			// # Create new subject button #
 			
+			// # Display subjects #
+			let mut i: i32 = 0;
+			for i in 0..subjects_per_page {
+				
+			}
 
-			// Code for creating new subject
-			
+			// # Create subjects #
+
 			// Handle edge case
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
