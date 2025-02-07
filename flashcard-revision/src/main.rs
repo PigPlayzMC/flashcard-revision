@@ -128,6 +128,42 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 	return result_ok
 }
 
+async fn load_icon_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/icons/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name, path.as_str());
+	let result_ok: Texture2D;
+
+	let mut result: Result<Texture2D, String> = match load_texture(&path).await {
+		Ok(texture) => Ok(texture),
+		Err(e) => {
+			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+			Err(format!("Load fallback texture")) // No semicolon *important*
+		}
+	};
+
+	if let Err(e) = &result {
+		info!("{}", e);
+	}
+
+	if result == Err("Load fallback texture".to_owned()) {
+		info!("Attempting to load fallback texture");
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
+		// Hours spent trying to work out why path wasn't working without .png: 3
+		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
+		result = match load_texture(&recovery_path).await {
+			Ok(texture) => Ok(texture),
+			Err(_e) => {
+				error!("Irrecoverable!!!");
+				Err(format!("Don't delete textures."))
+			}
+		};
+	};
+
+	result_ok = result.unwrap();
+	result_ok.set_filter(FilterMode::Linear);
+	return result_ok
+}
+
 fn save_settings(settings: Table) {
 	// Write settings to file
 	fs::write("./src/settings.toml",
@@ -221,7 +257,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let stage0_arrows_blank: Texture2D = load_stage_element("stage0_arrows_blank.png").await;
 
 	// Icons
-	let settings_notification: Texture2D = load_stage_element("settings_notification.png").await;
+	let settings_notification: Texture2D = load_icon_element("settings_notification.png").await;
 
 	info!("Texture load complete!");
 	println!();
@@ -260,7 +296,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	
 	// General colours
 	let background_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(0, 0, 0)
-	let text_colour: Color = Color::from_rgba(222, 222, 222, 255); //rgb(222, 222, 222)
+	let text_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(222, 222, 222)
 	let bounding_box: Color = Color::from_rgba(0, 80, 27, 255);    //rgb(0, 80, 27)
 	// ^^ Alpha must be set to 0 in production ^^
 
@@ -320,12 +356,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			);// End of subject display loop
 			
 			// # Display subjects #
-			let mut i: i32 = 0;
-			for i in 0..subjects_per_page {
-				
+			let mut sub_number: usize = (0 + (page) * subjects_per_page) as usize;
+			// Check that all 6 subjects can be drawn
+
+			for _ in (0+page*subjects_per_page)..(page*subjects_per_page+subjects_per_page) {
+				if sub_number >= subjects.len() {
+					////info!("Not displaying subject with number {} due to lack of existence...", sub_number);
+					break;
+				} else {
+					info!("Drawing subject with number {}", sub_number);
+					draw_text_ex(
+						subjects[sub_number].as_str(),
+						405., // 405 for all items on my machine
+						180., // 180 for first item on my machine
+						TextParams {
+							font: Some(&open_sans_reg),
+							font_size: (40),
+							////font_scale: (),
+							////font_scale_aspect: (),
+							color: (text_colour),
+							..Default::default()
+						},
+					);
+					sub_number += 1;
+				}
 			}
 
-			// # Create subjects #
+			// # Check mouse collisions #
+			if is_mouse_button_down(MouseButton::Left) {
+				
+			}
 
 			// Handle edge case
 			if creating_subject == true {
