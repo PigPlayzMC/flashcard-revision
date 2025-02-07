@@ -205,6 +205,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut texture_chosen: &Texture2D;
 	let mut width: f32;
 	let mut height: f32;
+	let mut loading: bool = true;
 
 	// Create or read settings file
 	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
@@ -245,6 +246,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Display loading screen
+	let mut frames_loading: i64 = 0; // Not a quick program
 	loading_screen().await;
 
 	// Load textures
@@ -316,6 +318,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!();
 
 	// ## Main loop ##
+	loading = false;
+	info!("Program loaded in {} frames", frames_loading); // Change this to use Chrono as no frames are
+	// loaded during the loading screen
+	info!("Program loaded in {} seconds", frames_loading/get_fps() as i64);
 	debug!("Main loop reached...");
 	loop {
 		// Info environment statements
@@ -421,6 +427,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		////info!("Screen height: {}", screen_height());
 
 		// End section (Nothing past this point please)
+		if loading == true {
+			frames_loading += 1;
+		}
 		next_frame().await;
 	}
 	
