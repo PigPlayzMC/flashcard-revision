@@ -1,535 +1,531 @@
-//* For best comment formatting, please use Better Comments extension (VSCode)\
+use std::{fs, time::SystemTime}; // Handles reading and writing files
 
-// ## Imports ##
-use rand::Rng;
-use rusqlite::{params, Connection};
-use core::panic;
-use std::io;
-use chrono::Utc;
+use macroquad::prelude::*; // Handles window display
 
-// All flashcards follow this structure
-#[derive(Clone)]
-pub struct Flashcard {
-	primary_key: i32, // Primary key of the flashcard in the subject's table (Not the subject table)
-	question: String, // Question or front text of the card
-	answer: String, // Answer or back text of the card
+use miniquad::window::dpi_scale;
+use rusqlite::{ // Handles SQLite database
+	params,
+	Connection,
+};
+
+use toml::Table; // Handles TOML files for configuration and preferences
+
+struct States {
+	up: bool,
+	add: bool,
+	down: bool,
+	settings: bool,
 }
 
-// ## SQLite functions ##
-//* Creates new flashcard */
-fn add_new_flashcard(conn: &Connection, ques: String, ans: String, subject_name: &str) {
-	// This takes inputs and adds it to the correct database, based on the subject.
-	let _ = conn.execute(
-		format!("INSERT INTO {} (category, question, answer, correct, incorrect) VALUES (?1, ?2, ?3, ?4, ?5);", subject_name).as_str(),
-		params![0, ques, ans, 0, 0],
-	);
-	println!("Flashcard added!")
-}
+fn conf() -> Conf {
+	// Load the icon at runtime
+    let icon_small = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_small.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
 
-//* Drops ENTIRE table*/
-// Broken - Needs fixing (Subject name)
-fn clear_database(conn: &Connection, subject_name: &str) {
-	//! VERY SCARY - USE WITH CAUTION
-	// This clears the specified table. This is irreversible.
-	println!("IRREVERSIBLE ACTION - CONFIRMATION REQUIRED: Are you sure you want to remove this subject? (y/N)"); // Default no
-	let input: String = get_user_input();
-	if input.to_lowercase() == "y" {
-		let _ = conn.execute(
-			format!("DROP TABLE {};", subject_name).as_str(),
-			params![],
-		);
-		println!("Table cleared!");
-	} else {
-		println!("Table not cleared.");
+	let icon_medium = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_medium.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
+
+	let icon_big = Image::from_file_with_format(
+		include_bytes!("./assets/images/stage_elements/icon_big.png"),
+		Some(ImageFormat::Png)
+	).unwrap();
+
+	Conf {
+		window_title: "Flashcard Application".to_owned(),
+		fullscreen:false,
+		high_dpi:true, // May cause issues in the future but yolo
+		window_width:984,
+		window_height:668,
+		window_resizable:true,
+		icon: Some(miniquad::conf::Icon {
+			small: icon_small
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+			medium: icon_medium
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+			big: icon_big
+				.bytes
+				.clone()
+				.try_into()
+				.expect("Image size mismatch"),
+		}),
+		..Default::default()
 	}
 }
 
-//* Remove specified flashcard from the subject table */
-fn remove_flashcard(conn: &Connection, primary_key: i32, subject_name: &str) {
-	let _ = conn.execute(
-		format!("DELETE FROM {} WHERE id = ?1;", subject_name).as_str(),
-		params![primary_key],
-	);
-	println!("Flashcard removed!");
+async fn loading_screen() {
+	request_new_screen_size(984.0 , 668.0); // Ensures that the window is the correct size from start.
+
+	debug!("Loading...");
+	clear_background(Color::from_rgba(0, 0, 0, 1));
+	draw_text("Loading...", screen_width() / 2.0 - 40.0, screen_height() / 2.0, 50.0, WHITE);
+	next_frame().await;
 }
 
-//* Edit either the answer or question of a specified flashcard */
-fn edit_flashcard(conn: &Connection, primary_key: i32, subject_name: &str, field_to_change: i32, new_value: String) {
-	// Changes a field on the flashcard (0 = question, 1 = answer)
-	if field_to_change == 0 {
-		let _ = conn.execute(
-			format!("UPDATE {} SET question = ?1 WHERE id = ?2;", subject_name).as_str(),
-			params![new_value, primary_key],
-		);
-	} else if field_to_change == 1 {
-		let _ = conn.execute(
-			format!("UPDATE {} SET answer = ?1 WHERE id = ?2;", subject_name).as_str(),
-			params![new_value, primary_key],
-		);
+fn get_centre(font: Font, font_size: u16, text: &str) -> Vec2 {
+	let centre = get_text_center(
+		text,
+		Some(&font),
+		font_size,
+		1.0,
+		0.0);
+
+	return centre;
+}
+
+fn get_length(text: &str, font_size: u16, font: &Font) -> TextDimensions {
+	let dimensions: TextDimensions = measure_text(
+		text,
+		Some(font),
+		font_size,
+		1.0);
+
+	return dimensions;
+}
+
+async fn load_stage_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/stage_elements/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name, path.as_str());
+	let result_ok: Texture2D;
+
+	let mut result: Result<Texture2D, String> = match load_texture(&path).await {
+		Ok(texture) => Ok(texture),
+		Err(e) => {
+			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+			Err(format!("Load fallback texture")) // No semicolon *important*
+		}
+	};
+
+	if let Err(e) = &result {
+		info!("{}", e);
 	}
+
+	if result == Err("Load fallback texture".to_owned()) {
+		info!("Attempting to load fallback texture");
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
+		// Hours spent trying to work out why path wasn't working without .png: 3
+		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
+		result = match load_texture(&recovery_path).await {
+			Ok(texture) => Ok(texture),
+			Err(_e) => {
+				error!("Irrecoverable!!!");
+				Err(format!("Don't delete textures."))
+			}
+		};
+	};
+
+	result_ok = result.unwrap();
+	result_ok.set_filter(FilterMode::Linear);
+	return result_ok
 }
 
-fn display_subjects(conn: &Connection) {
-	let mut stmt = conn.prepare("SELECT name FROM subjects;").unwrap();
-	let subjects = stmt.query_map(params![], |row| {
+async fn load_icon_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/icons/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name, path.as_str());
+	let result_ok: Texture2D;
+
+	let mut result: Result<Texture2D, String> = match load_texture(&path).await {
+		Ok(texture) => Ok(texture),
+		Err(e) => {
+			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+			Err(format!("Load fallback texture")) // No semicolon *important*
+		}
+	};
+
+	if let Err(e) = &result {
+		info!("{}", e);
+	}
+
+	if result == Err("Load fallback texture".to_owned()) {
+		info!("Attempting to load fallback texture");
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
+		// Hours spent trying to work out why path wasn't working without .png: 3
+		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
+		result = match load_texture(&recovery_path).await {
+			Ok(texture) => Ok(texture),
+			Err(_e) => {
+				error!("Irrecoverable!!!");
+				Err(format!("Don't delete textures."))
+			}
+		};
+	};
+
+	result_ok = result.unwrap();
+	result_ok.set_filter(FilterMode::Linear);
+	return result_ok
+}
+
+fn save_settings(settings: Table) {
+	// Write settings to file
+	fs::write("./src/settings.toml",
+	toml::to_string(&settings)
+	.expect("Cannot convert settings to string")
+	.as_bytes())
+	.expect("Cannot write settings to settings.toml");
+}
+
+fn get_subject_names(conn: Connection) -> Vec<String> {
+	let mut stmt: rusqlite::Statement<'_> = conn.prepare("SELECT name FROM subjects;").unwrap();
+	return stmt.query_map(params![], |row: &rusqlite::Row<'_>| {
 		Ok(row.get::<_, String>(0)?)
-	}).unwrap();
+	}).unwrap().map(|subject| subject.unwrap()).collect();
+}
 
-	println!("Subjects:");
-	let mut index: i32 = 1;
-	for subject in subjects {
-		println!("{}. {}", index, subject.unwrap_or("ERR: Failed to load...".to_string()));
-		index += 1;
+fn subject_exists(subject_number: u16, page: i32, subjects_per_page: i32, subjects: &Vec<String>) -> bool {
+	if subject_number + (page as u16 * subjects_per_page as u16) <= subjects.len() as u16 {
+		// Subject exists as it is less than or equal to the length of the subject list
+		true
+	} else {
+		// Subject does not exist :(
+		false
+	}
+}
+
+#[macroquad::main(conf)]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	// ## User settings ##
+	// Settings variables
+	let settings: Table;
+	let mut fullscreen: bool;
+	let mut num_of_subjects: u16 = 0; // "If anyone needs more than 65,535 subjects, they... have a problem" - Copilot
+	// ^^ Needs a default value to prevent uninitialized variable error ^^
+	
+	info!("Miniquad DPI: {}", dpi_scale());
+	info!("Macroquad DPI: {}", screen_dpi_scale());
+
+	// Struct to control whether buttons need to be gray or purple
+	let states = States {
+		up: false,
+		down: false,
+		add: false,
+		settings: false,
+	};
+
+	// Application variables
+	let mut text: &str;
+	let mut texture_chosen: &Texture2D;
+	let mut width: f32;
+	let mut height: f32;
+	let mut loading: bool = true;
+
+	// Create or read settings file
+	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
+		// Settings file does not exist :(
+		info!("Creating settings file...");
+		// Create settings file
+		settings = toml::toml! {
+			fullscreen = false
+			number_of_subjects = 0
+		};
+
+		// Set settings
+		fullscreen = settings.get("fullscreen").expect("Cannot retrieve fullscreen setting from settings.toml")
+		.as_bool()
+		.expect("Fullscreen setting is not a boolean");
+
+		// Save settings to file
+		save_settings(settings);
+	} else {
+		// Settings file exists :)
+		info!("Loading settings.toml...");
+		// Load settings file
+		settings = toml::from_str(fs::read_to_string("./src/settings.toml").expect("Cannot read settings.toml").as_str()).expect("Cannot parse settings.toml");
+		
+		// Retrieve settings from db
+		fullscreen = settings.get("fullscreen").expect("Cannot retrieve fullscreen setting from settings.toml")
+		.as_bool()
+		.expect("Fullscreen setting is not a boolean");
+
+		num_of_subjects = settings.get("number_of_subjects").expect("Cannot retrieve number_of_subjects setting from settings.toml")
+		.as_integer()
+		.expect("Subject number setting is not an integer")
+		as u16; //* Remember to change if number of subjects needs updating */
 	}
 
+	if fullscreen == true {
+		set_fullscreen(true);
+	}
+
+	// Display loading screen
+	let time_started = SystemTime::now();// Not a quick program
+	loading_screen().await;
+
+	// Load textures
 	println!();
-	println!("Select subject based on id or type 'new' to create a new subject.");
-}
+	info!("Loading textures...");
 
-// ## Flashcard revision functions ##
-fn get_random_flashcard<'a>(list_of_indexes: Vec<usize>, length: usize) -> usize {
-	let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
-	println!("Randomising card from 0 to {length}");
-	loop {
-		let rand_number: usize = rng.gen_range(0..length);
-		if list_of_indexes.contains(&rand_number) {
-			// Flash card already done. Retry!
-		} else {
-			return rand_number; // Return random value
-		}
-	}
-}
+	// Main elements
+	// Stages
+	let stage0_no_blank: Texture2D = load_stage_element("stage0_no_blank.png").await;
+	let stage0_arrows_blank: Texture2D = load_stage_element("stage0_arrows_blank.png").await;
 
-fn congratulations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
-	// correct/answers
-	let correct: Result<i32, rusqlite::Error> = conn.query_row(
-		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
-		params![flashcard.primary_key],
-		|row| row.get(0),
-	);
+	// Icons
+	let settings_notification: Texture2D = load_icon_element("settings_notification.png").await;
 
-	let incorrect: Result<i32, rusqlite::Error> = conn.query_row(
-		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
-		params![flashcard.primary_key],
-		|row| row.get(0),
-	);
-
-	let correct: f64 = correct.unwrap_or(0) as f64;
-	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
-	let total_attempts: f64 = correct + incorrect;
-	let accuracy: f64;
-	if total_attempts == 0.0 {
-		accuracy = 1.0;
-	} else {
-		accuracy = correct / total_attempts;
-	}
-
-	println!("Well done! Your accuracy is now {}.", accuracy);
-}
-
-fn commiserations(flashcard: Flashcard, conn: &Connection, subject_name: &str) {
-	let correct: Result<i32, rusqlite::Error> = conn.query_row(
-		format!("SELECT correct FROM {} WHERE id = ?1;", subject_name).as_str(),
-		params![flashcard.primary_key],
-		|row| row.get(0),
-	);
-
-	let incorrect: Result<i32, rusqlite::Error> = conn.query_row(
-		format!("SELECT incorrect FROM {} WHERE id = ?1;", subject_name).as_str(),
-		params![flashcard.primary_key],
-		|row| row.get(0),
-	);
-
-	let correct: f64 = correct.unwrap_or(0) as f64;
-	let incorrect: f64 = incorrect.unwrap_or(0) as f64;
-	let total_attempts = correct + incorrect;
-	let accuracy: f64;
-	if total_attempts == 0.0 {
-		accuracy = 0.0;
-	} else {
-		accuracy = correct / total_attempts;
-	}
-
-	println!("Whoops! Your accuracy is now {}.", accuracy);
-}
-
-fn revision_summary(correct_total : i32, cards_practiced : i32, to_move_up: Vec<i32>, to_move_down: Vec<i32>, subject_name: &str, conn: &Connection) {
+	info!("Texture load complete!");
 	println!();
-	println!("Post flashcard breakdown:");
-	let percent_accuracy: f64 = (correct_total as f64 / cards_practiced as f64) * 100.0;
-	let mut cards= "card";
 
-	if cards_practiced > 1 {
-		cards = "cards"; 
-	}
+	// Font
+	let open_sans_reg: Font = load_ttf_font("./src/assets/fonts/OpenSans-Regular.ttf").await.unwrap();
 
-	if cards_practiced == 0 {
-		println!("No cards practiced!");
-	} else {
-		println!("You practiced {0} {1}, and got {2} of those correct. That's {3}%!", cards_practiced, cards, correct_total, percent_accuracy);
-		println!();
-		println!("Learning progress breakdown; ");
-
-		println!("Cards moving upwards;");
-		if to_move_up.len() > 0 {
-			for &index in to_move_up.iter() {
-				let question: Result<String, rusqlite::Error> = conn.query_row(
-					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
-					params![index],
-					|row| row.get(0),
-				);
-				println!("- {}", question.unwrap_or("ERR: Not found...".to_string()));
-			}
-			println!();
-		} else {
-			println!("None!")
-		}
-
-		println!("Cards moving down;");
-		if to_move_down.len() > 0 {
-			for &index in to_move_down.iter() {
-				let question: Result<String, rusqlite::Error> = conn.query_row(
-					format!("SELECT question FROM {} WHERE id = ?1;", subject_name).as_str(),
-					params![index],
-					|row| row.get(0),
-				);
-				println!("- {}", question.unwrap_or("ERR: Not found...".to_string()));
-			}
-			println!();
-		} else {
-			println!("None!")
-		}
-
-		// Update time of last revision
-		let now = Utc::now();
-		let date: i64 = now.timestamp(); // Seconds since epoch
-		let _ = conn.execute(
-			format!("UPDATE subjects SET date_last_revised = ?1 WHERE name = ?2;").as_str(),
-			params![date, subject_name],
-		);
-	}
-}
-
-// ## General functions ##
-fn get_user_input() -> String { // New standard for handling user input.
-	let mut input: String = String::new();
-	let _n = io::stdin().read_line(&mut input).unwrap();
-	return input.trim().to_string();
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## SQLite database ##
-	let conn: Connection = Connection::open("flashcards.db")?; // Creates a new database if it doesn't exist or opens it if it does
+	let conn: Connection = Connection::open("flashcards.db")?; // Creates/opens database
 
 	// Storage of tables
 	let _ = conn.execute(
 		"CREATE TABLE IF NOT EXISTS subjects (
 			id INTEGER PRIMARY KEY,
 			name TEXT NOT NULL,
-			date_last_revised INTEGER NOT NULL
-		);", // Stores date as seconds since epoch
+			date_weak_revised INTEGER NOT NULL,
+			date_learning_revised INTEGER NOT NULL,
+			date_strong_revised INTEGER NOT NULL
+		);", // Stores dates as seconds since epoch
 		params![],
 	);
 
-	// Create new table for subject (Instead of database like previously) if not already present
-	display_subjects(&conn);
-	let input: String = get_user_input();
-	let mut subject_name: String = input.clone(); // Will need to be mut in future
+	// ## Window settings ##
+	// Subject settings
+	let subjects: Vec<String> = get_subject_names(conn);
+	// ^^ This will need updating when the database is updated later in the program ^^
+	let page: i32 = 0; // This allows for one page per subject so should not be too small
+	let subjects_per_page: i32 = 6;
+	let mut creating_subject: bool = false;
 
-	// Chrono date getting
-	let now = Utc::now();
-	let date: i64 = now.timestamp(); // Seconds since epoch
-
-	// Add newly created subject to list of subjects
-	// Check if subject already exists
-	if input == "new".to_owned() {
-		println!("Creating new subject. Please enter the name of the subject:");
-		subject_name = get_user_input();
-		let _ = conn.execute(
-			"INSERT INTO subjects (name, date_last_revised) VALUES (?1, ?2);",
-			params![subject_name, date],
-		);
-	} else {
-		subject_name = conn.query_row(
-			"SELECT name FROM subjects WHERE id = ?1;",
-			params![subject_name],
-			|row| row.get(0),
-		)?;
-	}
-
-	let _ = conn.execute(
-		format!("CREATE TABLE IF NOT EXISTS {} (
-			id INTEGER PRIMARY KEY,
-			category INTEGER NOT NULL,
-			question TEXT NOT NULL,
-			answer TEXT NOT NULL,
-			correct INTEGER NOT NULL,
-			incorrect INTEGER NOT NULL
-		);", subject_name).as_str(), // For category; 0 = weak, 1 = learning, 2 = strong
-		params![],
-	);
-
-	// Create flashcards loop
-	let mut creating_flashcards: bool = true;
-	while creating_flashcards == true {
-		println!("Would you like to add a flashcard? (y/n)");
-		let input: String = get_user_input();
-		if input == "y" {
-			println!("Enter the question:");
-			let ques: String = get_user_input();
-
-			println!("Enter the answer:");
-			let ans: String = get_user_input();
-
-			add_new_flashcard(&conn, ques, ans, subject_name.as_str());
-			/* Creates a new flashcard with the selected question. */
-		} else {
-			creating_flashcards = false;
-		}
-	}
-
-	// ## Operational loop ##
-	// Declare flashcard variables
-	let mut strong_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well generally
-	let mut learning_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done well sometimes
-	let mut weak_flashcards: Vec<Flashcard> = Vec::new(); // Flashcards done poorly
-
-	// ## Revision loop ##
-	// Set to_practice
-	let to_practice: i32;
-	println!("Revise which set? (weak, learning, strong)");
-	let input: String = get_user_input();
-
-	if input == "weak" {
-		to_practice = 0;
-	} else if input == "learning" {
-		to_practice = 1;
-	} else if input == "strong" {
-		to_practice = 2;
-	} else {
-		println!("Invalid input. Defaulting to weak flashcards.");
-		to_practice = 0;
-	};
-
-	// ## Load flashcards from the database ##
-	// Select relevant flashcards from the database.
-	// Then add them into a vector.
-	let query = format!("SELECT id FROM {} WHERE category = ?1;", subject_name);
-	let mut stmt: rusqlite::Statement<'_> = conn.prepare(&query)?;
-	let ids = stmt.query_map(params![to_practice], |row| row.get(0))?;
-
-	for id_result in ids {
-	let id: i32 = id_result?;
-		let flashcard: Result<Flashcard, rusqlite::Error> = conn.query_row(
-			format!("SELECT * FROM {} WHERE id = ?1;", subject_name).as_str(),
-			params![id],
-			|row| {
-				Ok(Flashcard {
-					primary_key: row.get(0)?,
-					question: row.get(2)?,
-					answer: row.get(3)?,
-				})
-			},
-		);
-
-		if flashcard.is_err() {
-			panic!("Error selecting flashcard from the database.");
-		} else {
-			let flashcard: Flashcard = flashcard.unwrap();
-			if to_practice == 0 {
-				weak_flashcards.push(flashcard);
-			} else if to_practice == 1 {
-				learning_flashcards.push(flashcard);
-			} else {
-				strong_flashcards.push(flashcard);
-			}
-		}
-	}
-
-	let mut cards_done: usize = 0;
-	let mut cards_selected: Vec<usize> = Vec::new(); // Must store primary keys of flashcards chosen to prevent repeats (Could be more efficient?)
-	let mut correct: bool = false;
-	let mut correct_total: i32 = 0;
+	/* Stage settings
+	0 = Subject selection/Settings, 1 = Changing settings,
+	2 = Revision, 3 = Results, 4 = Add/Remove flashcards,
+	5 = Edit flashcards */
+	let mut stage: u8 = 0;
 	
-	// Cards to be moved upwards following this revision session (Doesn't get used if practice_set is strong_flashcards)
-	let mut to_move_up: Vec<i32> = Vec::new(); // Stores primary_key
-	// Cards to be moved downwards following this revision session (Doesn't get used if practice_set is weak_flashcards)
-	let mut to_move_down: Vec<i32> = Vec::new(); // Stores primary_key
+	// General colours
+	let background_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(0, 0, 0)
+	let text_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(222, 222, 222)
+	let bounding_box: Color = Color::from_rgba(0, 80, 27, 255);    //rgb(0, 80, 27)
+	// ^^ Alpha must be set to 0 in production ^^
 
-	// Determines which flashcard set will be practiced
-	let length_of_set: usize;
-	if to_practice == 0 {
-		length_of_set = weak_flashcards.len();
-	} else if to_practice == 1 {
-		length_of_set = learning_flashcards.len();
-	} else {
-		length_of_set = strong_flashcards.len();
-	}
+	// Card colours
+	////let weak_colour = todo!();
+	////let learning_colour = todo!();
+	////let strong_colour = todo!();
 
-	/* **Explanation of below loop**
-		- Practiced flashcards are removed from practice_set
-		- Flashcards are randomly selected from the original set (e.g. weak_flashcards)
-		- Random index is checked against list of already chosen indexes (Stored in cards_selected)
-			- If already chosen, rerandomise
-			- If not already in cards_selected, return that value
-		- Add the provided index to cards_selected
-		- Use the provided index to provide a question
-		- Check answer and, if needed, get user verification
-		- Log accuracy
-		- Based on success or lack thereof, place the card into a vector marking it to be moved
-			to a new set following the termination of the loop. EXAMPLE;
+	// ## Debug variable displays ##
+	println!();
+	info!("Settings:");
+	info!("Fullscreen: {}", fullscreen);
+	info!("Number of subjects: {}", num_of_subjects);
+	// Info environment statements
+	////info!("Screen width: {}", screen_width()); // On my machine: 984 by 668
+	////info!("Screen height: {}", screen_height());
+	println!();
 
-			if correct;
-				to_move_up.push(this_flashcard);
-			else
-				to_move_down.push(this_flashcard);
+	// ## Main loop ##
+	loading = false;
+	let time_loaded = SystemTime::now()
+		.duration_since(time_started)
+		.expect("Time went backwards");
+	info!("Program loaded in {:?} seconds", time_loaded);
+	debug!("Main loop reached...");
+	debug!("");
+	debug!("");
+	loop {
+		// Info environment statements
+		////info!("Screen width: {}", screen_width()); // On my machine: 1440 by 900
+		////info!("Screen height: {}", screen_height());
 
-			// After loop
-			for element in to_move_up
-				higher_set.push(to_move_up[element]);
-			for element in to_move_down
-				lower_set.push(to_move_down[element]);
-	 */
-	// ## Revision loop ##
-	while cards_done < length_of_set {
-		// ## Ask a random flashcard question ##
-		// Get rand question
-		let index_of_question:usize  = get_random_flashcard(cards_selected.clone(), length_of_set);
-		cards_selected.push(index_of_question);
-		
-		let flashcard_chosen: Flashcard;
-		if to_practice == 0 {
-			flashcard_chosen = weak_flashcards[index_of_question].clone();
-		} else if to_practice == 1 {  
-			flashcard_chosen = learning_flashcards[index_of_question].clone();
-		} else {
-			flashcard_chosen = strong_flashcards[index_of_question].clone();
-		}
+		clear_background(background_colour);
 
-		// Display question
-		println!("{}",flashcard_chosen.question);
-
-		println!();
-
-		// Both lines required for input handling
-		let input: String = get_user_input();
-
-		println!();
-
-		// Compare actual answer and the input
-		println!("Your answer: {}", input);
-		println!("Actual answer: {}", flashcard_chosen.answer);
-
-		if input.to_lowercase() == flashcard_chosen.answer.to_lowercase() {
-			correct = true;			
-		} else {
-			println!("Was your answer correct? (y/n)");
-			let input: String = get_user_input();
-			println!();
-			//println!("Input: {}", input.trim().to_lowercase());
-			if input.to_lowercase() == "y" { // Answer correct
-				correct = true;
-			} else if input.to_lowercase() == "n" { // Answer correct
-				correct = false;
+		if stage == 0 {
+			// # Forward/Back buttons #
+			if num_of_subjects > 6 { // 6 subjects is maximum for display
+				// Display buttons in purple
+				texture_chosen = &stage0_no_blank;
+			} else { // Otherwise don't display
+				// Display buttons in gray
+				texture_chosen = &stage0_arrows_blank;
 			}
-		}
-		
-		// If cards are correct and this is not the highest tier of cards
-		if correct {
-			if to_practice != 2 {
-				// Can move upwards post revision
-				if to_practice == 0 {
-					to_move_up.push(weak_flashcards[index_of_question].primary_key);
+			// # Draw stage #
+			width = (3840.0/1920.0*screen_width())/2.0;
+			// Original width to height ratio = 3840:2160 = 16:9
+			// So height must equal width/16*9
+			// Could also consider doing this based on height as this seems to be the limiting
+			// factor on my display
+			height = width/16.0*9.0;
+			draw_texture_ex(
+				&texture_chosen,
+				screen_width()/2.0 - width/2.0,
+				0.0,
+				WHITE,
+				DrawTextureParams {
+					source: Some(Rect::new(0.0, 0.0, 3840.0, 2160.0)), // Use the full size of the texture
+					dest_size: Some(Vec2::new(width, height)),
+					..Default::default()
+				},
+			);// End of subject display loop
+
+			// Debug variable displays
+			draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, WHITE);
+			draw_text(&mouse_position().0.to_string(), 20.0, 100.0, 20.0, WHITE);
+			draw_text(&mouse_position().1.to_string(), 20.0, 150.0, 20.0, WHITE);
+			
+			// # Display subjects #
+			let mut sub_number: usize = (0 + (page) * subjects_per_page) as usize;
+			// Check that all 6 subjects can be drawn
+
+			for _ in (0+page*subjects_per_page)..(page*subjects_per_page+subjects_per_page) {
+				if sub_number >= subjects.len() {
+					////info!("Not displaying subject with number {} due to lack of existence...", sub_number);
+					break;
 				} else {
-					to_move_up.push(learning_flashcards[index_of_question].primary_key);
+					////info!("Drawing subject with number {}", sub_number);
+					draw_text_ex(
+						subjects[sub_number].as_str(),
+						405., // 405 for all items on my machine
+						180., // 180 for first item on my machine
+						TextParams {
+							font: Some(&open_sans_reg),
+							font_size: (40),
+							////font_scale: (),
+							////font_scale_aspect: (),
+							color: (text_colour),
+							..Default::default()
+						},
+					);
+					sub_number += 1;
 				}
 			}
 
-			let _ = conn.execute(
-				format!("UPDATE {} SET correct = correct + 1 WHERE id = ?1;", subject_name).as_str(),
-				params![flashcard_chosen.primary_key],
-			);
-			correct_total += 1;
+			// # Check mouse collisions #
+			if is_mouse_button_pressed(MouseButton::Left) {
+				info!("[E] Mouse click registered at {:?}", mouse_position());
+				// Check if mouse if on the subject box
+				if mouse_position().0 >= (378.) { // Subject box inner bounds
+					if mouse_position().1 >= 128. {
+						// On my machine
+						// May have to stop nesting these statements
+						if mouse_position().0 <= (1068.) { // Subject box outer bounds
+							if mouse_position().1 <= (670.) {
+								// ^^ Y coord doesn't seem to be used correctly ^^
+								// Maybe 4 if statements would fix this issue?
+								// Also on my machine
+								info!("[H] Mouse click indentified as within subject box");
+								// Identify which subject was clicked
+								// 670/6*1+128 is the wrong number. Around 239.66666666666667
+								// Actual desired number is around 202.5 for the first number
+								// Actual desired number is around 282.5 for the second number
+								// This jump is 80
+								// The actual jump in the program is 111.6666666666667
+								// The program jump is off by 31.6666666666667
+								// This can easily be rectified by switching to 80 (On my machine)
+								if mouse_position().1 <= (80. * 1. + 128.) {
+									// Subject one
+									info!("[H] Mouse click identified as subject one");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
 
-			congratulations(flashcard_chosen, &conn, subject_name.as_str());
-		} else {
-			if to_practice != 0 {
-				// Can mode downwards post revision
-				if to_practice == 1 {
-					to_move_down.push(learning_flashcards[index_of_question].primary_key);
-				} else {
-					to_move_down.push(strong_flashcards[index_of_question].primary_key);
+								} else if mouse_position().1 <= (80. * 2. + 128.) {
+									// Subject two
+									info!("[H] Mouse click identified as subject two");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+
+								} else if mouse_position().1 <= (80. * 3. + 128.) {
+									// Subject three
+									info!("[H] Mouse click identified as subject three");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 4. + 128.) {
+									// Subject four
+									info!("[H] Mouse click identified as subject four");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 5. + 128.) {
+									// Subject five
+									info!("[H] Mouse click identified as subject five");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 6. + 128.) { // This bound is too large?
+									// Subject six
+									info!("[H] Mouse click identified as subject six");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else {
+									error!("[E] Mouse click not identified as any subject despite being within subject box");
+								}
+							}
+						}
+					}
 				}
 			}
 
-			let _ = conn.execute(
-				format!("UPDATE {} SET incorrect = incorrect + 1 WHERE id = ?1;", subject_name).as_str(),
-				params![flashcard_chosen.primary_key],
-			);
+			// Handle edge case
+			// Not needed in this stage but will be needed in future stages
+			if creating_subject == true {
+				if num_of_subjects - 65535 == 0 {
+					error!("Cannot create subject: Maximum number (65,535) of subjects reached.");
+				} else {
+					// Create a subject
+				}
+			}
 
-			commiserations(flashcard_chosen, &conn, subject_name.as_str());
+		} else if stage == 1 {
+			// Change settings
+		} else if stage == 2 {
+			// Revision
+		} else if stage == 3 {
+			// Results
+		} else if stage == 4 {
+			// Add/Remove flashcards
+		} else if stage == 5 {
+			// Edit flashcards
+		} else {
+			panic!("ERROR 1: Invalid stage number");
 		}
-		
-		cards_done += 1;
+
+		// Debug window statements
+		////info!("Screen width: {}", screen_width());
+		////info!("Screen height: {}", screen_height());
+		////info!("Mouse position: {:?}", mouse_position());
+
+		// End section (Nothing past this point please)
+		next_frame().await;
 	}
-
-	// Post revision summary
-	if to_practice == 0 {
-		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 //to_move_down.clone(), weak_flashcards.clone());
-	} else if to_practice == 1 {
-		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 //to_move_down.clone(), learning_flashcards.clone());
-	} else {
-		//revision_summary(correct_total, cards_done.try_into().unwrap(), to_move_up.clone(),
-		 //to_move_down.clone(), strong_flashcards.clone());
-	}
-
-	// ## Post revision card adjustment ##
-	// Move cards up/down categories and adjust correct/incorrect values
-	// Up
-	to_move_up.sort();
-	if to_practice == 0 {
-		// Move cards upwards to `learning_flashcards`; cat = 1
-		// Modern
-		for &index in to_move_up.iter() {
-			let _ = conn.execute(
-				format!("UPDATE {} SET category = 1 WHERE id = ?1;", subject_name).as_str(),
-				params![index],
-			);
-		}
-	} else if to_practice == 1 {
-		// Move cards upwards to `strong_flashcards`; cat = 2
-		for &index in to_move_up.iter() {
-			let _ = conn.execute(
-				format!("UPDATE {} SET category = 2 WHERE id = ?1;", subject_name).as_str(),
-				params![index],
-			);
-		}
-	}
-
-	// Down
-	to_move_down.sort();
-	if to_practice == 2 {
-		// Move cards downwards to `weak_flashcards`
-		for &index in to_move_down.iter() {
-			let _ = conn.execute(
-				format!("UPDATE {} SET category = 0 WHERE id = ?1;", subject_name).as_str(),
-				params![index],
-			);
-		}
-	} else if to_practice == 1 {
-		// Move cards downwards to `weak_flashcards`
-		for &index in to_move_down.iter() {
-			let _ = conn.execute(
-				format!("UPDATE {} SET category = 0 WHERE id = ?1;", subject_name).as_str(),
-				params![index],
-			);
-		}
-	}
-
-	// Revision summary goes here!
-	revision_summary(correct_total, cards_done as i32, to_move_up, to_move_down, subject_name.as_str(), &conn);
-
-	Ok(()) // Don't know what this does but the compiler wants it.
+	
+	////Ok(())
 }
