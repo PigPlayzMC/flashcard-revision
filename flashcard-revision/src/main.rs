@@ -181,7 +181,7 @@ fn get_subject_names(conn: Connection) -> Vec<String> {
 }
 
 fn subject_exists(subject_number: u16, page: i32, subjects_per_page: i32, subjects: &Vec<String>) -> bool {
-	if subject_number + page as u16 * subjects_per_page as u16 <= subjects.len() as u16 {
+	if subject_number + (page as u16 * subjects_per_page as u16) <= subjects.len() as u16 {
 		// Subject exists as it is less than or equal to the length of the subject list
 		true
 	} else {
@@ -343,9 +343,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		clear_background(background_colour);
 
-		// Debug fps statement
-		draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, text_colour);
-
 		if stage == 0 {
 			// # Forward/Back buttons #
 			if num_of_subjects > 6 { // 6 subjects is maximum for display
@@ -373,6 +370,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					..Default::default()
 				},
 			);// End of subject display loop
+
+			// Debug variable displays
+			draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, WHITE);
+			draw_text(&mouse_position().0.to_string(), 20.0, 100.0, 20.0, WHITE);
+			draw_text(&mouse_position().1.to_string(), 20.0, 150.0, 20.0, WHITE);
 			
 			// # Display subjects #
 			let mut sub_number: usize = (0 + (page) * subjects_per_page) as usize;
@@ -405,80 +407,88 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			if is_mouse_button_pressed(MouseButton::Left) {
 				info!("[E] Mouse click registered at {:?}", mouse_position());
 				// Check if mouse if on the subject box
-				if mouse_position() >= (378., 128.) { // Subject box inner bounds
-					// On my machine
-					if mouse_position() <= (1068.,670.) { // Subject box outer bounds
-						// Also on my machine
-						info!("[H] Mouse click indentified as within subject box");
-						// Identify which subject was clicked
-						if mouse_position().1 <= (670./ 6. * 1. + 128.) {
-							// Subject one
-							info!("[H] Mouse click identified as subject one");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
-							}
+				if mouse_position().0 >= (378.) { // Subject box inner bounds
+					if mouse_position().1 >= 128. {
+						// On my machine
+						// May have to stop nesting these statements
+						if mouse_position().0 <= (1068.) { // Subject box outer bounds
+							if mouse_position().1 <= (670.) {
+								// ^^ Y coord doesn't seem to be used correctly ^^
+								// Maybe 4 if statements would fix this issue?
+								// Also on my machine
+								info!("[H] Mouse click indentified as within subject box");
+								// Identify which subject was clicked
+								// 670/6*1+128 is the wrong number. Around 239.66666666666667
+								// Actual desired number is around 202.5 for the first number
+								// Actual desired number is around 282.5 for the second number
+								// This jump is 80
+								// The actual jump in the program is 111.6666666666667
+								// The program jump is off by 31.6666666666667
+								// This can easily be rectified by switching to 80 (On my machine)
+								if mouse_position().1 <= (80. * 1. + 128.) {
+									// Subject one
+									info!("[H] Mouse click identified as subject one");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
 
-						} else if mouse_position().1 <= (670./ 6. * 2. + 128.) {
-							// Subject two
-							info!("[H] Mouse click identified as subject two");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
-							}
+								} else if mouse_position().1 <= (80. * 2. + 128.) {
+									// Subject two
+									info!("[H] Mouse click identified as subject two");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
 
-						} else if mouse_position().1 <= (670./ 6. * 3. + 128.) {
-							// Subject three
-							info!("[H] Mouse click identified as subject three");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
+								} else if mouse_position().1 <= (80. * 3. + 128.) {
+									// Subject three
+									info!("[H] Mouse click identified as subject three");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 4. + 128.) {
+									// Subject four
+									info!("[H] Mouse click identified as subject four");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 5. + 128.) {
+									// Subject five
+									info!("[H] Mouse click identified as subject five");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else if mouse_position().1 <= (80. * 6. + 128.) { // This bound is too large?
+									// Subject six
+									info!("[H] Mouse click identified as subject six");
+									if subject_exists(1, page, subjects_per_page, &subjects) {
+										info!("[H] Subject click handled as subject exists");
+										// Subject clicked and must now be handled
+									} else {
+										info!("[H] Subject click not handled as subject exists");
+									}
+									
+								} else {
+									error!("[E] Mouse click not identified as any subject despite being within subject box");
+								}
 							}
-							
-						} else if mouse_position().1 <= (670./ 6. * 4. + 128.) {
-							// Subject four
-							info!("[H] Mouse click identified as subject four");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
-							}
-							
-						} else if mouse_position().1 <= (670./ 6. * 5. + 128.) {
-							// Subject five
-							info!("[H] Mouse click identified as subject five");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
-							}
-							
-						} else if mouse_position().1 <= (670./ 6. * 6. + 128.) {
-							// Subject six
-							info!("[H] Mouse click identified as subject six");
-							if subject_exists(1, page, subjects_per_page, &subjects) {
-								info!("[H] Subject click handled as subject exists");
-								// Subject clicked and must now be handled
-								todo!("Handle subject click");
-							} else {
-								info!("[H] Subject click not handled as subject exists");
-							}
-							
-						} else {
-							error!("[E] Mouse click not identified as any subject despite being within subject box");
 						}
 					}
 				}
