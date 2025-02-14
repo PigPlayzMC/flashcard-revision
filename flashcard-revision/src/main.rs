@@ -422,7 +422,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 								info!("[H] Subject click not handled as subject exists");
 							}
 
-						} else if mouse_position().1 >= (670./ 6. * 2. + 128.) {
+						} else if mouse_position().1 <= (670./ 6. * 2. + 128.) {
 							// Subject two
 							info!("[H] Mouse click identified as subject two");
 							if subject_exists(1, page, subjects_per_page, &subjects) {
@@ -433,7 +433,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 								info!("[H] Subject click not handled as subject exists");
 							}
 
-						} else if mouse_position().1 >= (670./ 6. * 3. + 128.) {
+						} else if mouse_position().1 <= (670./ 6. * 3. + 128.) {
 							// Subject three
 							info!("[H] Mouse click identified as subject three");
 							if subject_exists(1, page, subjects_per_page, &subjects) {
@@ -444,7 +444,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 								info!("[H] Subject click not handled as subject exists");
 							}
 							
-						} else if mouse_position().1 >= (670./ 6. * 4. + 128.) {
+						} else if mouse_position().1 <= (670./ 6. * 4. + 128.) {
 							// Subject four
 							info!("[H] Mouse click identified as subject four");
 							if subject_exists(1, page, subjects_per_page, &subjects) {
@@ -455,7 +455,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 								info!("[H] Subject click not handled as subject exists");
 							}
 							
-						} else if mouse_position().1 >= (670./ 6. * 5. + 128.) {
+						} else if mouse_position().1 <= (670./ 6. * 5. + 128.) {
 							// Subject five
 							info!("[H] Mouse click identified as subject five");
 							if subject_exists(1, page, subjects_per_page, &subjects) {
@@ -466,7 +466,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 								info!("[H] Subject click not handled as subject exists");
 							}
 							
-						} else if mouse_position().1 >= (670./ 6. * 6. + 128.) {
+						} else if mouse_position().1 <= (670./ 6. * 6. + 128.) {
 							// Subject six
 							info!("[H] Mouse click identified as subject six");
 							if subject_exists(1, page, subjects_per_page, &subjects) {
