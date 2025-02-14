@@ -324,6 +324,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		.expect("Time went backwards");
 	info!("Program loaded in {:?} seconds", time_loaded);
 	debug!("Main loop reached...");
+	debug!("");
+	debug!("");
 	loop {
 		// Info environment statements
 		////info!("Screen width: {}", screen_width()); // On my machine: 1440 by 900
@@ -390,11 +392,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			}
 
 			// # Check mouse collisions #
-			if is_mouse_button_down(MouseButton::Left) {
-				
+			if is_mouse_button_pressed(MouseButton::Left) {
+				info!("[E] Mouse click registered at {:?}", mouse_position());
+				// Check if mouse if on the subject box
+				if mouse_position() >= (378., 128.) { // Subject box inner bounds
+					// On my machine
+					if mouse_position() <= (1068.,670.) { // Subject box outer bounds
+						// Also on my machine
+						info!("[H] Mouse click indentified as within subject box");
+						// Identify which subject was clicked
+						if mouse_position().1 <= (670./ 6. * 1. + 128.) {
+							// Subject one
+							info!("[H] Mouse click identified as subject one");
+						} else if mouse_position().1 >= (670./ 6. * 2. + 128.) {
+							// Subject two
+							info!("[H] Mouse click identified as subject two");
+						} else if mouse_position().1 >= (670./ 6. * 3. + 128.) {
+							// Subject three
+							info!("[H] Mouse click identified as subject three");
+						} else if mouse_position().1 >= (670./ 6. * 4. + 128.) {
+							// Subject four
+							info!("[H] Mouse click identified as subject four");
+						} else if mouse_position().1 >= (670./ 6. * 5. + 128.) {
+							// Subject five
+							info!("[H] Mouse click identified as subject five");
+						} else if mouse_position().1 >= (670./ 6. * 6. + 128.) {
+							// Subject six
+							info!("[H] Mouse click identified as subject six");
+						}
+					}
+				}
 			}
 
 			// Handle edge case
+			// Not needed in this stage but will be needed in future stages
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
 					error!("Cannot create subject: Maximum number (65,535) of subjects reached.");
@@ -402,8 +433,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					// Create a subject
 				}
 			}
-
-			// # Handle clicks to move stages #
 
 		} else if stage == 1 {
 			// Change settings
@@ -419,13 +448,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			panic!("ERROR 1: Invalid stage number");
 		}
 
-		////draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, GREEN);
-
-		////draw_text("Hello, Macroquad!", 20.0, 20.0, 30.0, DARKGRAY);
-
 		// Debug window statements
 		////info!("Screen width: {}", screen_width());
 		////info!("Screen height: {}", screen_height());
+		////info!("Mouse position: {:?}", mouse_position());
 
 		// End section (Nothing past this point please)
 		next_frame().await;
