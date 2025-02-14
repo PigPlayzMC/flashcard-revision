@@ -1,4 +1,4 @@
-use std::fs; // Handles reading and writing files
+use std::{fs, time::SystemTime}; // Handles reading and writing files
 
 use macroquad::prelude::*; // Handles window display
 
@@ -246,7 +246,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Display loading screen
-	let mut frames_loading: i64 = 0; // Not a quick program
+	let time_started = SystemTime::now();// Not a quick program
 	loading_screen().await;
 
 	// Load textures
@@ -319,9 +319,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// ## Main loop ##
 	loading = false;
-	info!("Program loaded in {} frames", frames_loading); // Change this to use Chrono as no frames are
-	// loaded during the loading screen
-	info!("Program loaded in {} seconds", frames_loading/get_fps() as i64);
+	let time_loaded = SystemTime::now()
+		.duration_since(time_started)
+		.expect("Time went backwards");
+	info!("Program loaded in {:?} seconds", time_loaded);
 	debug!("Main loop reached...");
 	loop {
 		// Info environment statements
@@ -427,9 +428,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		////info!("Screen height: {}", screen_height());
 
 		// End section (Nothing past this point please)
-		if loading == true {
-			frames_loading += 1;
-		}
 		next_frame().await;
 	}
 	
