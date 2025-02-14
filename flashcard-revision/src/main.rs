@@ -370,7 +370,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					////info!("Not displaying subject with number {} due to lack of existence...", sub_number);
 					break;
 				} else {
-					info!("Drawing subject with number {}", sub_number);
+					////info!("Drawing subject with number {}", sub_number);
 					draw_text_ex(
 						subjects[sub_number].as_str(),
 						405., // 405 for all items on my machine
