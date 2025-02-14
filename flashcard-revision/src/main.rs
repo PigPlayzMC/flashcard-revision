@@ -128,6 +128,42 @@ async fn load_stage_element(file_name: &str) -> Texture2D {
 	return result_ok
 }
 
+async fn load_icon_element(file_name: &str) -> Texture2D {
+	let path: String = format!("./src/assets/images/icons/{}", file_name.to_string().trim());
+	info!("Loading {0} from path: {1}", file_name, path.as_str());
+	let result_ok: Texture2D;
+
+	let mut result: Result<Texture2D, String> = match load_texture(&path).await {
+		Ok(texture) => Ok(texture),
+		Err(e) => {
+			error!("Failed to load texture from path: {}. Error: {:?}", path, e);
+			Err(format!("Load fallback texture")) // No semicolon *important*
+		}
+	};
+
+	if let Err(e) = &result {
+		info!("{}", e);
+	}
+
+	if result == Err("Load fallback texture".to_owned()) {
+		info!("Attempting to load fallback texture");
+		let recovery_path: String = format!("./src/assets/images/stage_elements/failed_to_load.png");
+		// Hours spent trying to work out why path wasn't working without .png: 3
+		info!("CRASH PREVENTION: Loading {0} from path: {1}", file_name, recovery_path.as_str());
+		result = match load_texture(&recovery_path).await {
+			Ok(texture) => Ok(texture),
+			Err(_e) => {
+				error!("Irrecoverable!!!");
+				Err(format!("Don't delete textures."))
+			}
+		};
+	};
+
+	result_ok = result.unwrap();
+	result_ok.set_filter(FilterMode::Linear);
+	return result_ok
+}
+
 fn save_settings(settings: Table) {
 	// Write settings to file
 	fs::write("./src/settings.toml",
@@ -169,6 +205,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut texture_chosen: &Texture2D;
 	let mut width: f32;
 	let mut height: f32;
+	let mut loading: bool = true;
 
 	// Create or read settings file
 	if !fs::exists("./src/settings.toml").expect("Cannot verify existence of settings.toml") {
@@ -209,6 +246,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// Display loading screen
+	let mut frames_loading: i64 = 0; // Not a quick program
 	loading_screen().await;
 
 	// Load textures
@@ -216,22 +254,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	info!("Loading textures...");
 
 	// Main elements
-	let header: Texture2D = load_stage_element("header.png").await;
+	// Stages
+	let stage0_no_blank: Texture2D = load_stage_element("stage0_no_blank.png").await;
+	let stage0_arrows_blank: Texture2D = load_stage_element("stage0_arrows_blank.png").await;
 
-	let flashcard_box: Texture2D = load_stage_element("flashcard_box.png").await;
-
-	// Buttons
-	let up_button: Texture2D = load_stage_element("up_button.png").await;
-	let up_button_pressed: Texture2D = load_stage_element("up_button_pressed.png").await;
-
-	let down_button: Texture2D = load_stage_element("down_button.png").await;
-	let down_button_pressed: Texture2D = load_stage_element("down_button_pressed.png").await;
-
-	let add_button: Texture2D = load_stage_element("add_button.png").await;
-	let add_button_pressed: Texture2D = load_stage_element("add_button_pressed.png").await;
-
-	let settings: Texture2D = load_stage_element("settings_button.png").await;
-	let settings_pressed: Texture2D = load_stage_element("settings_button_pressed.png").await;
+	// Icons
+	let settings_notification: Texture2D = load_icon_element("settings_notification.png").await;
 
 	info!("Texture load complete!");
 	println!();
@@ -260,7 +288,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ^^ This will need updating when the database is updated later in the program ^^
 	let page: i32 = 0; // This allows for one page per subject so should not be too small
 	let subjects_per_page: i32 = 6; // Must update to be based on screen size
-
 	let mut creating_subject: bool = false;
 
 	/* Stage settings
@@ -271,7 +298,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	
 	// General colours
 	let background_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(0, 0, 0)
-	let text_colour: Color = Color::from_rgba(222, 222, 222, 255); //rgb(222, 222, 222)
+	let text_colour: Color = Color::from_rgba(0, 0, 0, 255); //rgb(222, 222, 222)
 	let bounding_box: Color = Color::from_rgba(0, 80, 27, 255);    //rgb(0, 80, 27)
 	// ^^ Alpha must be set to 0 in production ^^
 
@@ -291,6 +318,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!();
 
 	// ## Main loop ##
+	loading = false;
+	info!("Program loaded in {} frames", frames_loading); // Change this to use Chrono as no frames are
+	// loaded during the loading screen
+	info!("Program loaded in {} seconds", frames_loading/get_fps() as i64);
 	debug!("Main loop reached...");
 	loop {
 		// Info environment statements
@@ -303,107 +334,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		draw_text(&get_fps().to_string(), 20.0, 20.0, 20.0, text_colour);
 
 		if stage == 0 {
-			// # Select subjects #
-			
-			// # Settings button #
-
-			// # Draw header #
-			width = 920.0/1920.0*screen_width();
-			height = 80.0/1080.0*screen_height();
-			////info!("{}", height);
+			// # Forward/Back buttons #
+			if num_of_subjects > 6 { // 6 subjects is maximum for display
+				// Display buttons in purple
+				texture_chosen = &stage0_no_blank;
+			} else { // Otherwise don't display
+				// Display buttons in gray
+				texture_chosen = &stage0_arrows_blank;
+			}
+			// # Draw stage #
+			width = (3840.0/1920.0*screen_width())/2.0;
+			// Original width to height ratio = 3840:2160 = 16:9
+			// So height must equal width/16*9
+			// Could also consider doing this based on height as this seems to be the limiting
+			// factor on my display
+			height = width/16.0*9.0;
 			draw_texture_ex(
-				&header,
+				&texture_chosen,
 				screen_width()/2.0 - width/2.0,
-				52.0,
+				0.0,
 				WHITE,
 				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 1840.0, 160.0)), // Use the full size of the texture
-					dest_size: Some(Vec2::new(width, height)), // Resize to fit 920 by 80 or that ratio
-					..Default::default()
-				},
-			);
-			
-			// # Subject list box #
-			width = 920.0/1920.0*screen_width();
-			height = 728.0/1080.0*screen_height();
-			////info!("Box width: {}", width);
-			////info!("Box height: {}", height);
-			draw_texture_ex(
-				&flashcard_box,
-				screen_width()/2.0-width/2.0,
-				screen_height()/2.0-height/2.0,
-				WHITE,
-				DrawTextureParams {
-					source: Some(Rect::new(0.0, 0.0, 1840.0, 1456.0)), // Use the full size of the texture
+					source: Some(Rect::new(0.0, 0.0, 3840.0, 2160.0)), // Use the full size of the texture
 					dest_size: Some(Vec2::new(width, height)),
 					..Default::default()
 				},
-			);
+			);// End of subject display loop
+			
+			// # Display subjects #
+			let mut sub_number: usize = (0 + (page) * subjects_per_page) as usize;
+			// Check that all 6 subjects can be drawn
 
-			// # Up button #
-			if states.up == true { // Has been pressed / is unavaliable
-				texture_chosen = &up_button_pressed;
-			} else { // Has not been pressed
-				texture_chosen = &up_button
-			}
-			width = 120.0/1920.0*screen_width();
-			height = width;
-			draw_texture_ex(
-				texture_chosen,
-				600.-width*1.5,
-				screen_height()-screen_height()*17./108., 
-				WHITE,
-				DrawTextureParams {
-					source: Some(Rect::new(0.0,0.0,120.0,120.0)),
-					dest_size: Some(Vec2::new(width, height)), // Resize to fit
-					..Default::default()
-				});
-
-			let mut index: i32 = 0; // People and SQLite3 start counting from 1 but for formatting 0 is required
-			for subject in &subjects {
-				if index >= page * subjects_per_page {
-					if index < page * subjects_per_page + subjects_per_page {
-						let subject_text: String = (index + 1).to_string() + ". " + subject;
-						text = &subject_text;
-
-						let centre: Vec2 = get_centre(
-							open_sans_reg.clone(),
-							40,
-							text,
-						);
-
-						////info!("{}", centre.y);
-						let offset: f32 = index as f32 * 62.5 + 200.0;
-						// ^^ centre.y is a negative value ^^
-
-						// Display each subject's name
-						draw_text_ex(
-							&text,
-							screen_width() / 2.0 - centre.x,
-							offset,
-							TextParams {
-								font: Some(&open_sans_reg),
-								font_size: 40,
-								color: text_colour,
-								..Default::default()},
-						);
-						
-						index += 1;
-					}
+			for _ in (0+page*subjects_per_page)..(page*subjects_per_page+subjects_per_page) {
+				if sub_number >= subjects.len() {
+					////info!("Not displaying subject with number {} due to lack of existence...", sub_number);
+					break;
+				} else {
+					////info!("Drawing subject with number {}", sub_number);
+					draw_text_ex(
+						subjects[sub_number].as_str(),
+						405., // 405 for all items on my machine
+						180., // 180 for first item on my machine
+						TextParams {
+							font: Some(&open_sans_reg),
+							font_size: (40),
+							////font_scale: (),
+							////font_scale_aspect: (),
+							color: (text_colour),
+							..Default::default()
+						},
+					);
+					sub_number += 1;
 				}
-			} // End of subject display loop
+			}
 
-			// # Forward/Back buttons #
-			if num_of_subjects > 6 { // 6 subjects is maximum for display
-				// Placeholder values
-				todo!();
-			} // Otherwise don't display
+			// # Check mouse collisions #
+			if is_mouse_button_down(MouseButton::Left) {
+				
+			}
 
-			// # Create new subject button #
-			
-
-			// Code for creating new subject
-			
 			// Handle edge case
 			if creating_subject == true {
 				if num_of_subjects - 65535 == 0 {
@@ -438,6 +427,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		////info!("Screen height: {}", screen_height());
 
 		// End section (Nothing past this point please)
+		if loading == true {
+			frames_loading += 1;
+		}
 		next_frame().await;
 	}
 	
