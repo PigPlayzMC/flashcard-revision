@@ -180,6 +180,16 @@ fn get_subject_names(conn: Connection) -> Vec<String> {
 	}).unwrap().map(|subject| subject.unwrap()).collect();
 }
 
+fn subject_exists(subject_number: u16, page: i32, subjects_per_page: i32, subjects: &Vec<String>) -> bool {
+	if subject_number + page as u16 * subjects_per_page as u16 <= subjects.len() as u16 {
+		// Subject exists as it is less than or equal to the length of the subject list
+		true
+	} else {
+		// Subject does not exist :(
+		false
+	}
+}
+
 #[macroquad::main(conf)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// ## User settings ##
@@ -287,7 +297,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let subjects: Vec<String> = get_subject_names(conn);
 	// ^^ This will need updating when the database is updated later in the program ^^
 	let page: i32 = 0; // This allows for one page per subject so should not be too small
-	let subjects_per_page: i32 = 6; // Must update to be based on screen size
+	let subjects_per_page: i32 = 6;
 	let mut creating_subject: bool = false;
 
 	/* Stage settings
@@ -404,21 +414,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						if mouse_position().1 <= (670./ 6. * 1. + 128.) {
 							// Subject one
 							info!("[H] Mouse click identified as subject one");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+
 						} else if mouse_position().1 >= (670./ 6. * 2. + 128.) {
 							// Subject two
 							info!("[H] Mouse click identified as subject two");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+
 						} else if mouse_position().1 >= (670./ 6. * 3. + 128.) {
 							// Subject three
 							info!("[H] Mouse click identified as subject three");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+							
 						} else if mouse_position().1 >= (670./ 6. * 4. + 128.) {
 							// Subject four
 							info!("[H] Mouse click identified as subject four");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+							
 						} else if mouse_position().1 >= (670./ 6. * 5. + 128.) {
 							// Subject five
 							info!("[H] Mouse click identified as subject five");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+							
 						} else if mouse_position().1 >= (670./ 6. * 6. + 128.) {
 							// Subject six
 							info!("[H] Mouse click identified as subject six");
+							if subject_exists(1, page, subjects_per_page, &subjects) {
+								info!("[H] Subject click handled as subject exists");
+								// Subject clicked and must now be handled
+								todo!("Handle subject click");
+							} else {
+								info!("[H] Subject click not handled as subject exists");
+							}
+							
+						} else {
+							error!("[E] Mouse click not identified as any subject despite being within subject box");
 						}
 					}
 				}
